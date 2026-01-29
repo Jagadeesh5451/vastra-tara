@@ -1,9 +1,18 @@
 from flask import Flask, render_template, request, redirect, url_for
 import sqlite3
 from flask import session
+import os
+from werkzeug.utils import secure_filename
+from flask import request
 
 app = Flask(__name__)
 app.secret_key = "vastra_secret"
+UPLOAD_FOLDER = "static/images"
+app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
+# Admin credentials (change these)
+ADMIN_USERNAME = "Jagadeesh"
+ADMIN_PASSWORD = "12345"
+
 
 def get_db():
     return sqlite3.connect("database.db")
@@ -11,24 +20,78 @@ def get_db():
 # ---------- HOME ----------
 @app.route("/")
 def home():
+    search_query = request.args.get("search", "")
+
     conn = get_db()
     cur = conn.cursor()
-    cur.execute("SELECT * FROM products")
+
+    if search_query:
+        cur.execute(
+            "SELECT * FROM products WHERE name LIKE ?",
+            ('%' + search_query + '%',)
+        )
+    else:
+        cur.execute("SELECT * FROM products")
+
     products = cur.fetchall()
     conn.close()
-    return render_template("home.html", products=products)
 
+    return render_template("home.html", products=products, search_query=search_query)
+@app.route("/product/<int:id>")
+def product_details(id):
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM products WHERE id=?", (id,))
+    product = cur.fetchone()
+    conn.close()
+
+    if not product:
+        return redirect("/")
+
+    return render_template(
+        "product.html",
+        product=product,
+        cart=session.get("cart", [])
+    )
+@app.route("/admin/login", methods=["GET", "POST"])
+def admin_login():
+    if request.method == "POST":
+        username = request.form["username"]
+        password = request.form["password"]
+
+        if username == ADMIN_USERNAME and password == ADMIN_PASSWORD:
+            session["admin_logged_in"] = True
+            return redirect(url_for("admin"))
+        else:
+            return render_template("admin_login.html", error="Invalid credentials")
+
+    return render_template("admin_login.html")
+@app.route("/admin/logout")
+def admin_logout():
+    session.pop("admin_logged_in", None)
+    return redirect(url_for("admin_login"))
 # ---------- ADMIN ----------
 @app.route("/admin", methods=["GET", "POST"])
 def admin():
+    if not session.get("admin_logged_in"):
+        return redirect(url_for("admin_login"))
     conn = get_db()
     cur = conn.cursor()
 
     if request.method == "POST":
         name = request.form["name"]
         price = request.form["price"]
+        image_file = request.files["image"]
 
-        cur.execute("INSERT INTO products (name, price) VALUES (?, ?)", (name, price))
+        filename = ""
+        if image_file:
+            filename = secure_filename(image_file.filename)
+            image_file.save(os.path.join(app.config["UPLOAD_FOLDER"], filename))
+
+        cur.execute(
+            "INSERT INTO products (name, price, image) VALUES (?, ?, ?)",
+            (name, price, filename)
+        )
         conn.commit()
 
     cur.execute("SELECT * FROM products")
@@ -52,9 +115,20 @@ def add_to_cart(id):
     if "cart" not in session:
         session["cart"] = []
 
-    session["cart"].append(id)
-    session.modified = True
-    return redirect(url_for("cart"))
+    if id not in session["cart"]:
+        session["cart"].append(id)
+        session.modified = True
+
+    return redirect("/")
+
+#--------Remove From cart----------------
+@app.route("/remove_from_cart/<int:id>")
+def remove_from_cart(id):
+    if "cart" in session and id in session["cart"]:
+        session["cart"].remove(id)
+        session.modified = True
+
+    return redirect("/")
 
 # ---------- CART PAGE ----------
 @app.route("/cart")
