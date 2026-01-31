@@ -1,15 +1,17 @@
-from flask import Flask, render_template, request, redirect, url_for
+from flask import Flask, render_template, request, redirect, url_for, session
 import sqlite3
-from flask import session
 import os
 from werkzeug.utils import secure_filename
-from flask import request
+import urllib.parse
 
 app = Flask(__name__)
 app.secret_key = "vastra_secret"
-UPLOAD_FOLDER = "static/images"
+
+# ---------------- UPLOAD CONFIG ----------------
+UPLOAD_FOLDER = os.path.join(app.root_path, "static", "images")
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
-# Admin credentials (change these)
+
 ADMIN_USERNAME = "Jagadeesh"
 ADMIN_PASSWORD = "12345"
 
@@ -17,82 +19,110 @@ ADMIN_PASSWORD = "12345"
 def get_db():
     return sqlite3.connect("database.db")
 
-# ---------- HOME ----------
+
+# ---------------- HOME ----------------
 @app.route("/")
 def home():
-    search_query = request.args.get("search", "")
-
     conn = get_db()
     cur = conn.cursor()
 
-    if search_query:
-        cur.execute(
-            "SELECT * FROM products WHERE name LIKE ?",
-            ('%' + search_query + '%',)
-        )
-    else:
-        cur.execute("SELECT * FROM products")
-
+    # Products + one image
+    cur.execute("""
+        SELECT p.id, p.name, p.price,
+               (SELECT image FROM product_images
+                WHERE product_id = p.id
+                LIMIT 1)
+        FROM products p
+    """)
     products = cur.fetchall()
-    conn.close()
 
-    return render_template("home.html", products=products, search_query=search_query)
-@app.route("/product/<int:id>")
-def product_details(id):
+    # Colours per product
+    cur.execute("""
+        SELECT product_id, GROUP_CONCAT(DISTINCT color)
+        FROM product_images
+        GROUP BY product_id
+    """)
+
+    product_colours = {
+        row[0]: row[1].split(",")
+        for row in cur.fetchall()
+    }
+
+    conn.close()
+    return render_template(
+        "home.html",
+        products=products,
+        product_colours=product_colours
+    )
+
+
+# ---------------- PRODUCT DETAILS ----------------
+@app.route("/product/<int:product_id>")
+def product_detail(product_id):
     conn = get_db()
     cur = conn.cursor()
-    cur.execute("SELECT * FROM products WHERE id=?", (id,))
+
+    cur.execute("SELECT id, name, price FROM products WHERE id=?", (product_id,))
     product = cur.fetchone()
-    conn.close()
 
     if not product:
+        conn.close()
         return redirect("/")
+
+    cur.execute("""
+        SELECT color, image
+        FROM product_images
+        WHERE product_id=?
+    """, (product_id,))
+
+    rows = cur.fetchall()
+    conn.close()
+
+    images_by_colour = {}
+    for colour, image in rows:
+        images_by_colour.setdefault(colour, []).append("images/" + image)
 
     return render_template(
         "product.html",
         product=product,
+        images_by_colour=images_by_colour,
         cart=session.get("cart", [])
     )
+
+
+# ---------------- ADMIN LOGIN ----------------
 @app.route("/admin/login", methods=["GET", "POST"])
 def admin_login():
     if request.method == "POST":
-        username = request.form["username"]
-        password = request.form["password"]
-
-        if username == ADMIN_USERNAME and password == ADMIN_PASSWORD:
+        if (
+            request.form["username"] == ADMIN_USERNAME
+            and request.form["password"] == ADMIN_PASSWORD
+        ):
             session["admin_logged_in"] = True
-            return redirect(url_for("admin"))
-        else:
-            return render_template("admin_login.html", error="Invalid credentials")
+            return redirect("/admin")
+        return render_template("admin_login.html", error="Invalid credentials")
 
     return render_template("admin_login.html")
-@app.route("/admin/logout")
-def admin_logout():
-    session.pop("admin_logged_in", None)
-    return redirect(url_for("admin_login"))
-# ---------- ADMIN ----------
+
+
+# ---------------- ADMIN PANEL ----------------
 @app.route("/admin", methods=["GET", "POST"])
 def admin():
     if not session.get("admin_logged_in"):
-        return redirect(url_for("admin_login"))
+        return redirect("/admin/login")
+
     conn = get_db()
     cur = conn.cursor()
 
     if request.method == "POST":
-        name = request.form["name"]
-        price = request.form["price"]
-        image_file = request.files["image"]
-
-        filename = ""
-        if image_file:
-            filename = secure_filename(image_file.filename)
-            image_file.save(os.path.join(app.config["UPLOAD_FOLDER"], filename))
-
-        cur.execute(
-            "INSERT INTO products (name, price, image) VALUES (?, ?, ?)",
-            (name, price, filename)
-        )
-        conn.commit()
+        name = request.form.get("name")
+        price = request.form.get("price")
+        if name and price:
+            cur.execute(
+                "INSERT INTO products (name, price) VALUES (?, ?)",
+                (name, price)
+            )
+            conn.commit()
 
     cur.execute("SELECT * FROM products")
     products = cur.fetchall()
@@ -100,7 +130,42 @@ def admin():
 
     return render_template("admin.html", products=products)
 
-# ---------- DELETE ----------
+
+# ---------------- ADMIN ADD IMAGES ----------------
+@app.route("/admin/add-images", methods=["POST"])
+def add_images():
+    if not session.get("admin_logged_in"):
+        return redirect("/admin/login")
+
+    product_id = request.form.get("product_id")
+    color = request.form.get("color")
+    images = request.files.getlist("images")
+
+    conn = get_db()
+    cur = conn.cursor()
+
+    for img in images:
+        if img.filename:
+            filename = secure_filename(img.filename)
+            img.save(os.path.join(app.config["UPLOAD_FOLDER"], filename))
+            cur.execute(
+                "INSERT INTO product_images (product_id, color, image) VALUES (?, ?, ?)",
+                (product_id, color, filename)
+            )
+
+    conn.commit()
+    conn.close()
+    return redirect("/admin")
+
+
+# ---------------- ADMIN LOGOUT ----------------
+@app.route("/admin/logout")
+def admin_logout():
+    session.pop("admin_logged_in", None)
+    return redirect("/admin/login")
+
+
+# ---------------- DELETE PRODUCT ----------------
 @app.route("/delete/<int:id>")
 def delete(id):
     conn = get_db()
@@ -108,102 +173,168 @@ def delete(id):
     cur.execute("DELETE FROM products WHERE id=?", (id,))
     conn.commit()
     conn.close()
-    return redirect(url_for("admin"))
-# ---------- ADD TO CART ----------
-@app.route("/add_to_cart/<int:id>")
-def add_to_cart(id):
-    if "cart" not in session:
-        session["cart"] = []
+    return redirect("/admin")
 
-    if id not in session["cart"]:
-        session["cart"].append(id)
-        session.modified = True
 
-    return redirect("/")
+# ---------------- ADD TO CART ----------------
+@app.route("/add_to_cart", methods=["POST"])
+def add_to_cart():
+    product_id = request.form.get("product_id")
+    colour = request.form.get("colour")
 
-#--------Remove From cart----------------
-@app.route("/remove_from_cart/<int:id>")
-def remove_from_cart(id):
-    if "cart" in session and id in session["cart"]:
-        session["cart"].remove(id)
-        session.modified = True
+    if not product_id:
+        return redirect("/")
 
-    return redirect("/")
+    session.setdefault("cart", [])
+    session["cart"].append({
+        "id": int(product_id),
+        "colour": colour
+    })
+    session.modified = True
+    return redirect("/cart")
 
-# ---------- CART PAGE ----------
+
+# ---------------- REMOVE FROM CART ----------------
+
+
+# ---------------- CART ----------------
 @app.route("/cart")
 def cart():
-    cart_items = session.get("cart", [])
-
     conn = get_db()
     cur = conn.cursor()
 
     products = []
     total = 0
-    for item_id in cart_items:
-        cur.execute("SELECT * FROM products WHERE id=?", (item_id,))
+
+    for index, item in enumerate(session.get("cart", [])):
+        cur.execute("""
+            SELECT p.id, p.name, p.price,
+                   (SELECT image FROM product_images
+                    WHERE product_id = p.id
+                    AND color = ?
+                    LIMIT 1)
+            FROM products p
+            WHERE p.id = ?
+        """, (item["colour"], item["id"]))
+
         product = cur.fetchone()
         if product:
-            products.append(product)
+            products.append({
+                "index": index,
+                "id": product[0],
+                "name": product[1],
+                "price": product[2],
+                "image": product[3],
+                "colour": item["colour"]
+            })
             total += product[2]
-
     conn.close()
     return render_template("cart.html", products=products, total=total)
-# ---------- CHECKOUT ----------
-import urllib.parse
+#-----------------Remove from cart----------------
+@app.route("/remove_from_cart/<int:index>")
+def remove_from_cart(index):
+    cart = session.get("cart", [])
 
+    if 0 <= index < len(cart):
+        cart.pop(index)
+        session.modified = True
+
+    return redirect("/cart")
+# ---------------- BUY NOW ----------------
+@app.route("/buy_now/<int:id>")
+def buy_now(id):
+    session["buy_now"] = id
+    session.modified = True
+    return redirect("/checkout")
+
+
+# ---------------- CHECKOUT ----------------
 @app.route("/checkout", methods=["GET", "POST"])
 def checkout():
-    if request.method == "GET" and not session.get("cart"):
-        return redirect(url_for("cart"))
-    if request.method == "POST":
-        name = request.form["name"]
-        phone = request.form["phone"]
-        address = request.form["address"]
+    conn = get_db()
+    cur = conn.cursor()
 
-        cart_items = session.get("cart", [])
+    products = []
+    total = 0
 
-        conn = get_db()
-        cur = conn.cursor()
+    # ---------------- BUY NOW FLOW ----------------
+    if request.method == "POST" and request.form.get("buy_now"):
+        product_id = request.form.get("product_id")
+        colour = request.form.get("colour")
 
-        product_list = []
-        total = 0
+        cur.execute("""
+            SELECT p.id, p.name, p.price,
+                   (SELECT image FROM product_images
+                    WHERE product_id = p.id AND color = ?
+                    LIMIT 1)
+            FROM products p
+            WHERE p.id = ?
+        """, (colour, product_id))
 
-        for item_id in cart_items:
-            cur.execute("SELECT * FROM products WHERE id=?", (item_id,))
-            product = cur.fetchone()
-            if product:
-                product_list.append(product)
-                total += product[2]
+        row = cur.fetchone()
+        if row:
+            products.append({
+                "id": row[0],
+                "name": row[1],
+                "price": row[2],
+                "image": row[3],
+                "colour": colour
+            })
+            total = row[2]
 
-        conn.close()
+    # ---------------- CART FLOW ----------------
+    elif request.method == "POST":
+        selected_ids = request.form.getlist("selected_products")
 
-        message = f"""
-New Order - Vastra Tara 🧵
+        for idx in selected_ids:
+            item = session["cart"][int(idx)]
 
-Name: {name}
-Phone: {phone}
-Address: {address}
+            cur.execute("""
+                SELECT p.id, p.name, p.price,
+                       (SELECT image FROM product_images
+                        WHERE product_id = p.id AND color = ?
+                        LIMIT 1)
+                FROM products p
+                WHERE p.id = ?
+            """, (item["colour"], item["id"]))
 
-Products:
-"""
-        for p in product_list:
-            message += f"- {p[1]} (₹{p[2]})\n"
+            row = cur.fetchone()
+            if row:
+                products.append({
+                    "id": row[0],
+                    "name": row[1],
+                    "price": row[2],
+                    "image": row[3],
+                    "colour": item["colour"]
+                })
+                total += row[2]
 
-        message += f"\nTotal: ₹{total}\nPayment: Cash on Delivery"
+    # ---------------- PLACE ORDER ----------------
+    if request.method == "POST" and products:
+        name = request.form.get("name")
+        phone = request.form.get("phone")
+        address = request.form.get("address")
 
-        encoded_msg = urllib.parse.quote(message)
+        if name and phone and address:
+            message = "New Order - Vastra Tara 🧵\n\n"
+            message += f"Name: {name}\nPhone: {phone}\nAddress: {address}\n\nProducts:\n"
 
-        whatsapp_number = "919390708120"  # <-- PUT YOUR NUMBER HERE (with country code)
+            for p in products:
+                message += f"- {p['name']} ({p['colour']}) ₹{p['price']}\n"
 
-        whatsapp_url = f"https://wa.me/{whatsapp_number}?text={encoded_msg}"
+            message += f"\nTotal: ₹{total}\nPayment: Cash on Delivery"
 
-        session.pop("cart", None)
+            whatsapp_url = (
+                "https://wa.me/919390708120?text=" +
+                urllib.parse.quote(message)
+            )
 
-        return redirect(whatsapp_url)
+            conn.close()
+            return redirect(whatsapp_url)
 
-    return render_template("checkout.html")
+    conn.close()
+    return render_template("checkout.html", products=products, total=total)
 
 
 if __name__ == "__main__":
-    app.run()
+    app.run(debug=True)

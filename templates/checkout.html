@@ -9,17 +9,68 @@
 
 <body class="bg-light">
 
-<div class="container mt-5" style="max-width:600px;">
+<div class="container mt-5" style="max-width:700px;">
 
     <div class="card shadow-sm">
         <div class="card-body">
 
-            <h3 class="text-center mb-4">Checkout</h3>
+            <h3 class="text-center mb-3">Checkout</h3>
             <p class="text-center text-muted mb-4">
                 Payment Method: <b>Cash on Delivery</b>
             </p>
 
+            <!-- 🔹 PRODUCT SUMMARY -->
+            {% if products %}
+                {% for p in products %}
+                <div class="card mb-3">
+                    <div class="card-body d-flex align-items-center">
+
+                        <!-- IMAGE -->
+                        {% if p.image %}
+                            <img
+                                src="{{ url_for('static', filename='images/' + p.image) }}"
+                                width="80"
+                                height="80"
+                                class="me-3 rounded"
+                                style="object-fit:cover;"
+                            >
+                        {% else %}
+                            <img
+                                src="{{ url_for('static', filename='images/no-image.png') }}"
+                                width="80"
+                                height="80"
+                                class="me-3 rounded"
+                                style="object-fit:cover;"
+                            >
+                        {% endif %}
+
+                        <!-- DETAILS -->
+                        <div class="flex-grow-1">
+                            <h6 class="mb-1">{{ p.name }}</h6>
+                            <p class="text-muted mb-1">
+                                Colour: <b>{{ p.colour }}</b>
+                            </p>
+                        </div>
+
+                        <!-- PRICE -->
+                        <div class="text-end">
+                            <p class="fw-bold mb-0">₹ {{ p.price }}</p>
+                        </div>
+
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <p class="text-center text-muted">No items selected</p>
+            {% endif %}
+
+            <h5 class="text-end mb-4">
+                Total: <span class="fw-bold">₹ {{ total }}</span>
+            </h5>
+
+            <!-- 🔹 CHECKOUT FORM -->
             <form method="post">
+
                 <input
                     type="text"
                     class="form-control mb-3"
@@ -54,6 +105,7 @@
                 <button type="submit" class="btn btn-dark w-100">
                     Place Order
                 </button>
+
             </form>
 
         </div>

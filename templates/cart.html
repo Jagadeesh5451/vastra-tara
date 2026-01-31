@@ -9,45 +9,90 @@
 
 <div class="container mt-5">
 
+    <!-- BACK -->
+    <a href="/" class="btn btn-outline-dark mb-4">
+        ← Continue Shopping
+    </a>
+
     <h3 class="mb-4">Your Cart</h3>
 
-    {% for p in products %}
-    <div class="card mb-3 shadow-sm">
-        <div class="card-body">
-            <div class="row align-items-center">
+    {% if products %}
+    <form method="post" action="/checkout">
 
-                <div class="col-md-2">
-                    <img
-                        src="{{ url_for('static', filename='images/' + p[3]) }}"
-                        class="img-fluid rounded"
-                    >
+        {% for p in products %}
+        <div class="card mb-3 shadow-sm">
+            <div class="card-body">
+                <div class="row align-items-center">
+
+                    <!-- CHECKBOX -->
+                    <div class="col-md-1 col-2 text-center">
+                        <input type="checkbox"
+                               name="selected_products"
+                               value="{{ p.index }}"
+                               checked>
+                    </div>
+
+                    <!-- IMAGE -->
+                    <div class="col-md-2 col-4">
+                        {% if p.image %}
+                            <img src="{{ url_for('static', filename='images/' + p.image) }}"
+                                 class="img-fluid rounded">
+                        {% else %}
+                            <img src="{{ url_for('static', filename='images/no-image.png') }}"
+                                 class="img-fluid rounded">
+                        {% endif %}
+                    </div>
+
+                    <!-- DETAILS -->
+                    <div class="col-md-6 col-6">
+                        <h5 class="mb-1">{{ p.name }}</h5>
+
+                        <p class="text-muted mb-1">
+                            Colour: <b>{{ p.colour }}</b>
+                        </p>
+
+                        <p class="text-muted mb-1">
+                            Cash on Delivery
+                        </p>
+
+                        <a href="/remove_from_cart/{{ p.index }}"
+                           class="btn btn-outline-danger btn-sm mt-2">
+                            Remove
+                        </a>
+                    </div>
+
+                    <!-- PRICE -->
+                    <div class="col-md-3 text-md-end mt-2 mt-md-0">
+                        <h5>₹ {{ p.price }}</h5>
+                    </div>
+
                 </div>
-
-                <div class="col-md-6">
-                    <h5>{{ p[1] }}</h5>
-                    <p class="text-muted mb-1">Cash on Delivery</p>
-                                    <!-- REMOVE BUTTON -->
-                <a href="/remove_from_cart/{{ p[0] }}"
-                   class="btn btn-outline-danger btn-sm mt-2">
-                    Remove
-                </a>
-                </div>
-
-                <div class="col-md-4 text-end">
-                    <h5>₹ {{ p[2] }}</h5>
-                </div>
-
             </div>
         </div>
-    </div>
-    {% endfor %}
+        {% endfor %}
 
-    <div class="text-end mt-3">
-        <h4>Total: ₹ {{ total }}</h4>
-        <a href="/checkout" class="btn btn-success btn-lg mt-2">
-            Proceed to Checkout
-        </a>
-    </div>
+        <!-- CHECKOUT -->
+        <div class="text-end mt-4">
+            <h5 class="text-muted mb-2">
+                Total will be calculated at checkout
+            </h5>
+            <button type="submit" class="btn btn-success btn-lg">
+                Proceed to Checkout
+            </button>
+        </div>
+
+    </form>
+
+    {% else %}
+        <!-- EMPTY CART -->
+        <div class="text-center text-muted mt-5">
+            <h5>Your cart is empty</h5>
+            <p>Add products to continue shopping</p>
+            <a href="/" class="btn btn-dark mt-3">
+                Start Shopping
+            </a>
+        </div>
+    {% endif %}
 
 </div>
 

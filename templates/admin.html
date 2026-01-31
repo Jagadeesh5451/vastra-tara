@@ -9,61 +9,113 @@
 
 <body class="container mt-4">
 
-<h2 class="mb-4">Admin Panel – Vastra Tara</h2>
-<div class="text-end mb-3">
-    <a href="/admin/logout" class="btn btn-outline-danger btn-sm">
-        Logout
-    </a>
+<h2 class="mb-3">Admin Panel – Vastra Tara</h2>
+
+<div class="d-flex justify-content-between mb-3">
+    <span class="text-muted">Add products, colours & images</span>
+    <a href="/admin/logout" class="btn btn-outline-danger btn-sm">Logout</a>
 </div>
 
-<!-- ADD PRODUCT FORM -->
-<form method="post" enctype="multipart/form-data" class="mb-4">
+<!-- ================= ADD PRODUCT ================= -->
+<div class="card mb-4">
+    <div class="card-body">
 
-    <div class="row g-2">
-        <div class="col-md-4">
-            <input
-                class="form-control"
-                name="name"
-                placeholder="Product Name"
-                required
-            >
-        </div>
+        <h5 class="mb-3">Add New Product</h5>
 
-        <div class="col-md-3">
-            <input
-                class="form-control"
-                name="price"
-                placeholder="Price"
-                required
-            >
-        </div>
+        <form method="post" enctype="multipart/form-data">
 
-        <div class="col-md-3">
-            <input
-                type="file"
-                class="form-control"
-                name="image"
-                accept="image/*"
-                required
-            >
-        </div>
+            <div class="row g-2 mb-2">
+                <div class="col-md-5">
+                    <input
+                        class="form-control"
+                        name="name"
+                        placeholder="Product Name"
+                        required
+                    >
+                </div>
 
-        <div class="col-md-2">
-            <button class="btn btn-dark w-100">
-                Add Product
+                <div class="col-md-3">
+                    <input
+                        class="form-control"
+                        name="price"
+                        placeholder="Price"
+                        required
+                    >
+                </div>
+            </div>
+
+            <button class="btn btn-dark">
+                Create Product
             </button>
-        </div>
+
+        </form>
+
     </div>
+</div>
 
-</form>
+<!-- ================= ADD COLOUR + IMAGES ================= -->
+<div class="card mb-4">
+    <div class="card-body">
 
-<!-- PRODUCT LIST -->
+        <h5 class="mb-3">Add Colour & Images (All Angles)</h5>
+
+        <form method="post" enctype="multipart/form-data" action="/admin/add-images">
+
+            <div class="row g-2 mb-2">
+
+                <div class="col-md-4">
+                    <select class="form-control" name="product_id" required>
+                        <option value="">Select Product</option>
+                        {% for p in products %}
+                            <option value="{{ p[0] }}">{{ p[1] }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="col-md-3">
+                    <input
+                        class="form-control"
+                        name="color"
+                        placeholder="Colour (e.g. Red, Blue)"
+                        required
+                    >
+                </div>
+
+                <div class="col-md-3">
+                    <input
+                        type="file"
+                        class="form-control"
+                        name="images"
+                        accept="image/*"
+                        multiple
+                        required
+                    >
+                </div>
+
+                <div class="col-md-2">
+                    <button class="btn btn-success w-100">
+                        Upload
+                    </button>
+                </div>
+
+            </div>
+
+            <small class="text-muted">
+                Upload multiple images (front, back, side) for one colour
+            </small>
+
+        </form>
+
+    </div>
+</div>
+
+<!-- ================= PRODUCT LIST ================= -->
+<h5 class="mb-3">Products</h5>
+
 <table class="table table-bordered table-hover">
-
     <thead class="table-dark">
         <tr>
             <th>ID</th>
-            <th>Image</th>
             <th>Name</th>
             <th>Price</th>
             <th>Action</th>
@@ -74,28 +126,13 @@
     {% for p in products %}
         <tr>
             <td>{{ p[0] }}</td>
-
-            <td>
-                {% if p[3] %}
-                    <img
-                        src="{{ url_for('static', filename='images/' + p[3]) }}"
-                        width="60"
-                        height="60"
-                        style="object-fit:cover; border-radius:6px;"
-                    >
-                {% else %}
-                    No Image
-                {% endif %}
-            </td>
-
             <td>{{ p[1] }}</td>
             <td>₹ {{ p[2] }}</td>
-
             <td>
                 <a
                     href="/delete/{{ p[0] }}"
                     class="btn btn-danger btn-sm"
-                    onclick="return confirm('Delete this product?')"
+                    onclick="return confirm('Delete this product and all its images?')"
                 >
                     Delete
                 </a>
@@ -103,7 +140,6 @@
         </tr>
     {% endfor %}
     </tbody>
-
 </table>
 
 </body>

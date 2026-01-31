@@ -20,13 +20,10 @@
 
         <!-- SEARCH -->
         <form class="d-flex mx-auto w-50" method="get" action="/">
-            <input
-                class="form-control me-2"
-                type="search"
-                name="search"
-                placeholder="Search for products"
-                value="{{ search_query }}"
-            >
+            <input class="form-control me-2"
+                   type="search"
+                   name="search"
+                   placeholder="Search for products">
             <button class="btn btn-light">Search</button>
         </form>
 
@@ -39,26 +36,23 @@
 <!-- PRODUCTS -->
 <div class="container mt-4">
 
-    {% if search_query %}
-        <h5 class="mb-3">
-            Search results for "<b>{{ search_query }}</b>"
-        </h5>
-    {% else %}
-        <h5 class="mb-3 fw-bold">Top Picks for You</h5>
-    {% endif %}
+    <h5 class="mb-3 fw-bold">Top Picks for You</h5>
 
     {% if products %}
     <div class="row g-4">
+
         {% for p in products %}
         <div class="col-lg-3 col-md-4 col-sm-6">
             <div class="card product-card h-100 shadow-sm">
 
                 <!-- IMAGE -->
-                <img
-                    src="{{ url_for('static', filename='images/' + p[3]) }}"
-                    class="card-img-top product-img"
-                    alt="{{ p[1] }}"
-                >
+                {% if p[3] %}
+                    <img src="{{ url_for('static', filename='images/' + p[3]) }}"
+                         class="product-img">
+                {% else %}
+                    <img src="{{ url_for('static', filename='images/no-image.png') }}"
+                         class="product-img">
+                {% endif %}
 
                 <!-- CARD BODY -->
                 <div class="card-body text-center d-flex flex-column">
@@ -70,17 +64,15 @@
                     <!-- BUTTONS -->
                     <div class="mt-auto d-grid gap-2">
 
-                        {% if p[0] in session.get('cart', []) %}
-                            <a href="/cart" class="btn btn-warning">
-                                Go to Cart
-                            </a>
-                        {% else %}
-                            <a href="/add_to_cart/{{ p[0] }}" class="btn btn-dark">
-                                Add to Cart
-                            </a>
-                        {% endif %}
+                        <!-- ADD TO CART -->
+                        <button class="btn btn-dark"
+                                onclick="handleAddToCart({{ p[0] }})">
+                            Add to Cart
+                        </button>
 
-                        <a href="/product/{{ p[0] }}" class="btn btn-outline-dark">
+                        <!-- BUY NOW -->
+                        <a href="/product/{{ p[0] }}"
+                           class="btn btn-outline-dark">
                             Buy Now
                         </a>
 
@@ -90,17 +82,85 @@
             </div>
         </div>
         {% endfor %}
-    </div>
 
+    </div>
     {% else %}
-        <!-- NO PRODUCTS -->
         <div class="text-center text-muted mt-5">
             <h5>No products found</h5>
-            <p>Try searching with a different keyword.</p>
         </div>
     {% endif %}
 
 </div>
+
+<!-- COLOUR SELECTION MODAL -->
+<div class="modal fade" id="colourModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <form method="post" action="/add_to_cart" class="modal-content">
+
+      <div class="modal-header">
+        <h5 class="modal-title">Select Colour</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+
+      <div class="modal-body" id="colourOptions"></div>
+
+      <input type="hidden" name="product_id" id="modalProductId">
+
+      <div class="modal-footer">
+        <button class="btn btn-dark">Add to Cart</button>
+      </div>
+
+    </form>
+  </div>
+</div>
+
+<!-- JS -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+<script>
+const productColours = {{ product_colours | tojson }};
+
+function handleAddToCart(productId) {
+    const colours = productColours[productId];
+
+    // If only one colour → auto add
+    if (!colours || colours.length === 1) {
+        submitAddToCart(productId, colours ? colours[0] : null);
+        return;
+    }
+
+    // Multiple colours → show modal
+    document.getElementById("modalProductId").value = productId;
+
+    let html = "";
+    colours.forEach(c => {
+        html += `
+            <div class="form-check">
+                <input class="form-check-input" type="radio"
+                       name="colour" value="${c}" required>
+                <label class="form-check-label">${c}</label>
+            </div>
+        `;
+    });
+
+    document.getElementById("colourOptions").innerHTML = html;
+    new bootstrap.Modal(document.getElementById("colourModal")).show();
+}
+
+function submitAddToCart(productId, colour) {
+    const form = document.createElement("form");
+    form.method = "POST";
+    form.action = "/add_to_cart";
+
+    form.innerHTML = `
+        <input type="hidden" name="product_id" value="${productId}">
+        <input type="hidden" name="colour" value="${colour}">
+    `;
+
+    document.body.appendChild(form);
+    form.submit();
+}
+</script>
 
 </body>
 </html>
