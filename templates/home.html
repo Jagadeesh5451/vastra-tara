@@ -42,6 +42,8 @@
     <div class="row g-4">
 
         {% for p in products %}
+        <!-- p = (id, name, price, image, quantity) -->
+
         <div class="col-lg-3 col-md-4 col-sm-6">
             <div class="card product-card h-100 shadow-sm">
 
@@ -56,25 +58,34 @@
 
                 <!-- CARD BODY -->
                 <div class="card-body text-center d-flex flex-column">
+
                     <p class="product-title mb-1">{{ p[1] }}</p>
+
                     <p class="product-price fw-bold text-success mb-3">
                         ₹ {{ p[2] }}
                     </p>
 
-                    <!-- BUTTONS -->
+                    <!-- ACTION BUTTONS -->
                     <div class="mt-auto d-grid gap-2">
 
-                        <!-- ADD TO CART -->
-                        <button class="btn btn-dark"
-                                onclick="handleAddToCart({{ p[0] }})">
-                            Add to Cart
-                        </button>
+                        {% if p[4] > 0 %}
+                            <!-- ADD TO CART -->
+                            <button class="btn btn-dark"
+                                    onclick="handleAddToCart({{ p[0] }})">
+                                Add to Cart
+                            </button>
 
-                        <!-- BUY NOW -->
-                        <a href="/product/{{ p[0] }}"
-                           class="btn btn-outline-dark">
-                            Buy Now
-                        </a>
+                            <!-- BUY NOW -->
+                            <a href="/product/{{ p[0] }}"
+                               class="btn btn-outline-dark">
+                                Buy Now
+                            </a>
+                        {% else %}
+                            <!-- OUT OF STOCK -->
+                            <button class="btn btn-secondary" disabled>
+                                Out of Stock
+                            </button>
+                        {% endif %}
 
                     </div>
                 </div>
@@ -123,13 +134,13 @@ const productColours = {{ product_colours | tojson }};
 function handleAddToCart(productId) {
     const colours = productColours[productId];
 
-    // If only one colour → auto add
+    // Single colour → direct add
     if (!colours || colours.length === 1) {
         submitAddToCart(productId, colours ? colours[0] : null);
         return;
     }
 
-    // Multiple colours → show modal
+    // Multiple colours → modal
     document.getElementById("modalProductId").value = productId;
 
     let html = "";
@@ -155,6 +166,7 @@ function submitAddToCart(productId, colour) {
     form.innerHTML = `
         <input type="hidden" name="product_id" value="${productId}">
         <input type="hidden" name="colour" value="${colour}">
+        <input type="hidden" name="quantity" value="1">
     `;
 
     document.body.appendChild(form);

@@ -22,10 +22,11 @@
 
         <h5 class="mb-3">Add New Product</h5>
 
-        <form method="post" enctype="multipart/form-data">
+        <form method="post">
 
             <div class="row g-2 mb-2">
-                <div class="col-md-5">
+                <!-- PRODUCT NAME -->
+                <div class="col-md-3">
                     <input
                         class="form-control"
                         name="name"
@@ -34,17 +35,43 @@
                     >
                 </div>
 
-                <div class="col-md-3">
+                <!-- PRICE -->
+                <div class="col-md-2">
                     <input
                         class="form-control"
                         name="price"
+                        type="number"
+                        min="1"
                         placeholder="Price"
                         required
                     >
                 </div>
+
+                <!-- QUANTITY -->
+                <div class="col-md-2">
+                    <input
+                        class="form-control"
+                        name="quantity"
+                        type="number"
+                        min="0"
+                        placeholder="Quantity"
+                        required
+                    >
+                </div>
+
+                <!-- DESCRIPTION -->
+                <div class="col-md-5">
+                    <textarea
+                        class="form-control"
+                        name="description"
+                        placeholder="Product Description"
+                        rows="2"
+                        required
+                    ></textarea>
+                </div>
             </div>
 
-            <button class="btn btn-dark">
+            <button class="btn btn-dark mt-2">
                 Create Product
             </button>
 
@@ -118,6 +145,8 @@
             <th>ID</th>
             <th>Name</th>
             <th>Price</th>
+            <th>Qty</th>
+            <th>Description</th>
             <th>Action</th>
         </tr>
     </thead>
@@ -128,6 +157,26 @@
             <td>{{ p[0] }}</td>
             <td>{{ p[1] }}</td>
             <td>₹ {{ p[2] }}</td>
+
+            <!-- QUANTITY DISPLAY -->
+            <td>
+                {% if p[4] > 0 %}
+                    <span class="badge bg-success">{{ p[4] }}</span>
+                {% else %}
+                    <span class="badge bg-danger">Out</span>
+                {% endif %}
+            </td>
+
+            <!-- DESCRIPTION -->
+            <td style="max-width:300px;">
+                {% if p[3] %}
+                    {{ p[3][:120] }}{% if p[3]|length > 120 %}...{% endif %}
+                {% else %}
+                    <span class="text-muted">No description</span>
+                {% endif %}
+            </td>
+
+            <!-- ACTION -->
             <td>
                 <a
                     href="/delete/{{ p[0] }}"

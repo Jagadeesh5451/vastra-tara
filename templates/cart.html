@@ -19,6 +19,9 @@
     {% if products %}
     <form method="post" action="/checkout">
 
+        <!-- ✅ REQUIRED FLAG -->
+        <input type="hidden" name="from_cart" value="1">
+
         {% for p in products %}
         <div class="card mb-3 shadow-sm">
             <div class="card-body">
@@ -44,16 +47,25 @@
                     </div>
 
                     <!-- DETAILS -->
-                    <div class="col-md-6 col-6">
+                    <div class="col-md-5 col-6">
                         <h5 class="mb-1">{{ p.name }}</h5>
 
                         <p class="text-muted mb-1">
                             Colour: <b>{{ p.colour }}</b>
                         </p>
 
-                        <p class="text-muted mb-1">
-                            Cash on Delivery
-                        </p>
+                        <!-- STOCK -->
+                        {% if p.stock > 0 %}
+                            <span class="badge bg-success">
+                                In Stock ({{ p.stock }})
+                            </span>
+                        {% else %}
+                            <span class="badge bg-danger">
+                                Out of Stock
+                            </span>
+                        {% endif %}
+
+                        <br>
 
                         <a href="/remove_from_cart/{{ p.index }}"
                            class="btn btn-outline-danger btn-sm mt-2">
@@ -61,8 +73,20 @@
                         </a>
                     </div>
 
+                    <!-- QUANTITY -->
+                    <div class="col-md-2 mt-2 mt-md-0">
+                        <label class="small text-muted">Qty</label>
+                        <input type="number"
+                               name="quantity_{{ p.index }}"
+                               class="form-control"
+                               min="1"
+                               max="{{ p.stock }}"
+                               value="1"
+                               {% if p.stock == 0 %}disabled{% endif %}>
+                    </div>
+
                     <!-- PRICE -->
-                    <div class="col-md-3 text-md-end mt-2 mt-md-0">
+                    <div class="col-md-2 text-md-end mt-2 mt-md-0">
                         <h5>₹ {{ p.price }}</h5>
                     </div>
 
@@ -73,9 +97,10 @@
 
         <!-- CHECKOUT -->
         <div class="text-end mt-4">
-            <h5 class="text-muted mb-2">
+            <h6 class="text-muted mb-2">
                 Total will be calculated at checkout
-            </h5>
+            </h6>
+
             <button type="submit" class="btn btn-success btn-lg">
                 Proceed to Checkout
             </button>

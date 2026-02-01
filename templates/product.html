@@ -1,7 +1,9 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
     <title>{{ product[1] }} | Vastra Tara</title>
+
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
 
     <style>
@@ -55,65 +57,90 @@
             <h4 class="text-success">₹ {{ product[2] }}</h4>
 
             <p class="text-muted mt-3">
-                Premium quality product from Vastra Tara.
-                Perfect for daily wear and special occasions.
+                {{ product[3] }}
             </p>
 
             <!-- COLOURS -->
-            <p class="fw-bold mt-3">Available Colours:</p>
+            <p class="fw-bold mt-3">Available Colours</p>
 
             <div id="colorButtons" class="mb-3">
                 {% for colour in images_by_colour.keys() %}
                     <button type="button"
-                        class="btn btn-outline-dark me-2 color-btn {% if loop.first %}active{% endif %}"
-                        onclick="changeColour('{{ colour }}', this)">
+                            class="btn btn-outline-dark me-2 color-btn {% if loop.first %}active{% endif %}"
+                            onclick="changeColour('{{ colour }}', this)">
                         {{ colour }}
                     </button>
                 {% endfor %}
             </div>
 
-            <!-- ACTIONS -->
-            <div class="mt-4 d-flex gap-2">
+            {% if product[4] > 0 %}
 
-                <!-- BUY NOW (POST → CHECKOUT) -->
-                <form method="post" action="/checkout">
-                    <input type="hidden" name="buy_now" value="1">
-                    <input type="hidden" name="product_id" value="{{ product[0] }}">
-                    <input type="hidden" name="colour" id="selectedColourBuy" value="{{ first_colour }}">
+                <!-- QUANTITY -->
+                <p class="fw-bold mt-3">Quantity</p>
+                <select class="form-select w-50 mb-4" id="quantitySelect">
+                    {% for i in range(1, product[4] + 1) %}
+                        <option value="{{ i }}">{{ i }}</option>
+                    {% endfor %}
+                </select>
 
-                    <button type="submit" class="btn btn-success btn-lg">
-                        Buy Now
-                    </button>
-                </form>
+                <!-- ACTION BUTTONS -->
+                <div class="d-flex gap-3">
 
-                <!-- ADD TO CART -->
-                <form method="post" action="/add_to_cart">
-                    <input type="hidden" name="product_id" value="{{ product[0] }}">
-                    <input type="hidden" name="colour" id="selectedColourCart" value="{{ first_colour }}">
+                    <!-- BUY NOW -->
+                    <form method="post" action="/buy_now/{{ product[0] }}">
+                        <input type="hidden" name="colour" id="selectedColourBuy" value="{{ first_colour }}">
+                        <input type="hidden" name="quantity" id="buyQty">
+                        <button type="submit" class="btn btn-success btn-lg">
+                            Buy Now
+                        </button>
+                    </form>
 
-                    <button type="submit" class="btn btn-dark btn-lg">
-                        Add to Cart
-                    </button>
-                </form>
+                    <!-- ADD TO CART -->
+                    <form method="post" action="/add_to_cart">
+                        <input type="hidden" name="product_id" value="{{ product[0] }}">
+                        <input type="hidden" name="colour" id="selectedColourCart" value="{{ first_colour }}">
+                        <input type="hidden" name="quantity" id="cartQty">
+                        <button type="submit" class="btn btn-dark btn-lg">
+                            Add to Cart
+                        </button>
+                    </form>
 
-            </div>
+                </div>
+
+            {% else %}
+                <button class="btn btn-secondary btn-lg mt-3" disabled>
+                    Out of Stock
+                </button>
+            {% endif %}
 
         </div>
     </div>
 </div>
 
+<!-- JS -->
 <script>
     const imagesByColour = {{ images_by_colour | tojson }};
     let currentColour = "{{ first_colour }}";
 
+    const qtySelect = document.getElementById("quantitySelect");
+    const buyQty = document.getElementById("buyQty");
+    const cartQty = document.getElementById("cartQty");
+
+    if (qtySelect && buyQty && cartQty) {
+        buyQty.value = qtySelect.value;
+        cartQty.value = qtySelect.value;
+
+        qtySelect.addEventListener("change", () => {
+            buyQty.value = qtySelect.value;
+            cartQty.value = qtySelect.value;
+        });
+    }
+
     function changeColour(colour, btn) {
         currentColour = colour;
-
-        // update hidden inputs
         document.getElementById("selectedColourBuy").value = colour;
         document.getElementById("selectedColourCart").value = colour;
 
-        // active button
         document.querySelectorAll('.color-btn').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
 
@@ -121,11 +148,8 @@
         thumbs.innerHTML = "";
 
         const imgs = imagesByColour[colour];
-
-        // main image
         document.getElementById("mainImage").src = "/static/" + imgs[0];
 
-        // thumbnails
         imgs.forEach((img, index) => {
             const im = document.createElement("img");
             im.src = "/static/" + img;
