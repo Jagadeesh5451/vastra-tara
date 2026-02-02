@@ -3,6 +3,8 @@ import sqlite3
 import os
 from werkzeug.utils import secure_filename
 import urllib.parse
+from werkzeug.security import generate_password_hash, check_password_hash
+from functools import wraps
 
 app = Flask(__name__)
 app.secret_key = "vastra_secret"
@@ -19,9 +21,69 @@ ADMIN_PASSWORD = "12345"
 def get_db():
     return sqlite3.connect("database.db")
 
+def login_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if "user_id" not in session:
+            return redirect("/login")
+        return f(*args, **kwargs)
+    return decorated_function
+@app.route("/signup", methods=["GET", "POST"])
+def signup():
+    if request.method == "POST":
+        mobile = request.form.get("mobile")
+        password = request.form.get("password")
+        confirm = request.form.get("confirm")
 
+        if password != confirm:
+            return render_template("signup.html", error="Passwords do not match")
+
+        hashed_password = generate_password_hash(password)
+
+        conn = get_db()
+        cur = conn.cursor()
+
+        try:
+            cur.execute(
+                "INSERT INTO users (mobile, password) VALUES (?, ?)",
+                (mobile, hashed_password)
+            )
+            conn.commit()
+        except:
+            conn.close()
+            return render_template("signup.html", error="Mobile already registered")
+
+        conn.close()
+        return redirect("/login")
+
+    return render_template("signup.html")
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    if request.method == "POST":
+        mobile = request.form.get("mobile")
+        password = request.form.get("password")
+
+        conn = get_db()
+        cur = conn.cursor()
+        cur.execute("SELECT id, password FROM users WHERE mobile = ?", (mobile,))
+        user = cur.fetchone()
+        conn.close()
+
+        if user and check_password_hash(user[1], password):
+            session["user_id"] = user[0]
+            session["mobile"] = mobile
+            return redirect("/")
+        else:
+            return render_template("login.html", error="Invalid credentials")
+
+    return render_template("login.html")
+@app.route("/logout")
+def logout():
+    session.clear()
+    return redirect("/login")
 # ---------------- HOME ----------------
 @app.route("/")
+@login_required
 def home():
     conn = get_db()
     cur = conn.cursor()
@@ -271,6 +333,7 @@ def add_to_cart():
 
 
 # ---------------- CART ----------------
+@login_required
 @app.route("/cart")
 def cart():
     conn = get_db()
@@ -391,6 +454,7 @@ def buy_now(id):
 
 
 # ---------------- CHECKOUT ----------------
+@login_required
 @app.route("/checkout", methods=["GET", "POST"])
 def checkout():
     products = []
