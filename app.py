@@ -5,8 +5,11 @@ from werkzeug.utils import secure_filename
 import urllib.parse
 from werkzeug.security import generate_password_hash, check_password_hash
 from functools import wraps
-
+from flask import redirect, session
+from datetime import timedelta
 app = Flask(__name__)
+app.permanent_session_lifetime = 0
+app.permanent_session_lifetime = timedelta(days=1)
 app.secret_key = "vastra_secret"
 
 # ---------------- UPLOAD CONFIG ----------------
@@ -28,55 +31,82 @@ def login_required(f):
             return redirect("/login")
         return f(*args, **kwargs)
     return decorated_function
+#---------signup-------------------
 @app.route("/signup", methods=["GET", "POST"])
 def signup():
     if request.method == "POST":
-        mobile = request.form.get("mobile")
+        full_name = request.form.get("full_name")
+        phone = request.form.get("phone")
         password = request.form.get("password")
         confirm = request.form.get("confirm")
+
+        if not all([full_name, phone, password, confirm]):
+            return render_template("signup.html", error="All fields required")
 
         if password != confirm:
             return render_template("signup.html", error="Passwords do not match")
 
-        hashed_password = generate_password_hash(password)
-
         conn = get_db()
         cur = conn.cursor()
 
-        try:
-            cur.execute(
-                "INSERT INTO users (mobile, password) VALUES (?, ?)",
-                (mobile, hashed_password)
-            )
-            conn.commit()
-        except:
-            conn.close()
-            return render_template("signup.html", error="Mobile already registered")
+        # ✅ CHECK ONLY BY PHONE
+        cur.execute(
+            "SELECT id FROM users WHERE phone = ?",
+            (phone,)
+        )
+        exists = cur.fetchone()
 
+        if exists:
+            conn.close()
+            return render_template(
+                "signup.html",
+                error="Mobile already registered"
+            )
+
+        # ✅ INSERT NEW USER
+        cur.execute("""
+            INSERT INTO users (full_name, phone, password)
+            VALUES (?, ?, ?)
+        """, (full_name, phone, password))
+
+        conn.commit()
         conn.close()
+
         return redirect("/login")
 
     return render_template("signup.html")
+
+#-----------------login------------------
 @app.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
-        mobile = request.form.get("mobile")
+        phone = request.form.get("phone")
         password = request.form.get("password")
 
         conn = get_db()
         cur = conn.cursor()
-        cur.execute("SELECT id, password FROM users WHERE mobile = ?", (mobile,))
+
+        cur.execute("""
+            SELECT id, full_name
+            FROM users
+            WHERE phone = ? AND password = ?
+        """, (phone, password))
+
         user = cur.fetchone()
         conn.close()
 
-        if user and check_password_hash(user[1], password):
+        if user:
+            session.permanent = True
             session["user_id"] = user[0]
-            session["mobile"] = mobile
+            session["full_name"] = user[1]   # ✅ THIS FIXES "Hello None"
+            # auto logout on browser close
             return redirect("/")
-        else:
-            return render_template("login.html", error="Invalid credentials")
+
+        return render_template("login.html", error="Invalid credentials")
 
     return render_template("login.html")
+
+#--------------logout------------
 @app.route("/logout")
 def logout():
     session.clear()
@@ -186,7 +216,28 @@ def admin_login():
 
     return render_template("admin_login.html")
 
+#------------------orders------------
+@app.route("/orders")
+def orders():
+    user_id = session.get("user_id")   # ✅ SAFE
 
+    if not user_id:
+        return redirect("/login")
+
+    conn = get_db()
+    cur = conn.cursor()
+
+    cur.execute("""
+        SELECT product_name, colour, quantity, total, created_at
+        FROM orders
+        WHERE user_id = ?
+        ORDER BY created_at DESC
+    """, (user_id,))
+
+    orders = cur.fetchall()
+    conn.close()
+
+    return render_template("orders.html", orders=orders)
 # ---------------- ADMIN PANEL ----------------
 @app.route("/admin", methods=["GET", "POST"])
 def admin():
@@ -454,8 +505,8 @@ def buy_now(id):
 
 
 # ---------------- CHECKOUT ----------------
-@login_required
 @app.route("/checkout", methods=["GET", "POST"])
+@login_required
 def checkout():
     products = []
     total = 0
@@ -538,11 +589,27 @@ def checkout():
 
             message += f"\nTotal: ₹{total}\nPayment: Cash on Delivery"
 
-            # -------- Reduce Stock --------
+            # ================= SAVE ORDER + UPDATE STOCK =================
             conn = get_db()
             cur = conn.cursor()
 
             for p in products:
+                # 🔹 SAVE ORDER
+                cur.execute("""
+                    INSERT INTO orders (
+                        user_id, product_name, colour,
+                        quantity, price, total
+                    ) VALUES (?, ?, ?, ?, ?, ?)
+                """, (
+                    session["user_id"],
+                    p["name"],
+                    p["colour"],
+                    p["quantity"],
+                    p["price"],
+                    p["subtotal"]
+                ))
+
+                # 🔹 REDUCE STOCK
                 cur.execute("""
                     UPDATE products
                     SET quantity = quantity - ?
@@ -552,11 +619,12 @@ def checkout():
             conn.commit()
             conn.close()
 
-            # -------- Clear Sessions --------
+            # ================= CLEAR SESSIONS =================
             session.pop("buy_now", None)
             session.pop("buy_now_total", None)
             session.pop("cart", None)
 
+            # ================= REDIRECT TO WHATSAPP =================
             whatsapp_url = (
                 "https://wa.me/919390708120?text="
                 + urllib.parse.quote(message)
@@ -564,6 +632,5 @@ def checkout():
             return redirect(whatsapp_url)
 
     return render_template("checkout.html", products=products, total=total)
-
 if __name__ == "__main__":
     app.run(debug=True)

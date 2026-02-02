@@ -1,0 +1,248 @@
+/* RESET */
+* {
+    box-sizing: border-box;
+    font-family: 'Segoe UI', sans-serif;
+}
+
+/* BODY BACKGROUND */
+.auth-body {
+    min-height: 100vh;
+    background:
+        linear-gradient(rgba(75, 0, 130, 0.65), rgba(75, 0, 130, 0.65)),
+        url("/static/images/logo.png");
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+/* TOP TEXT */
+.brand-header {
+    position: absolute;
+    top: 40px;
+    text-align: center;
+    z-index: 2;
+}
+
+.brand-header h1 {
+    color: #fff;
+    font-weight: 600;
+    letter-spacing: 1px;
+}
+
+.brand-header span {
+    color: #ffd700;
+}
+
+/* CARD WRAPPER */
+.auth-wrapper {
+    z-index: 2;
+}
+
+/* GLASS CARD */
+.auth-card {
+    width: 360px;
+    padding: 30px;
+    background: rgba(255, 255, 255, 0.18);
+    backdrop-filter: blur(14px);
+    border-radius: 14px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.35);
+    color: #fff;
+}
+
+/* INPUTS */
+.auth-card input {
+    background: rgba(255, 255, 255, 0.95);
+    border: none;
+    height: 44px;
+    border-radius: 8px;
+}
+
+/* BUTTON */
+.auth-card button {
+    height: 44px;
+    border-radius: 8px;
+    font-size: 16px;
+}
+
+/* LINKS */
+.auth-card a {
+    color: #ffd700;
+    text-decoration: none;
+}
+
+.auth-card a:hover {
+    text-decoration: underline;
+}
+/* FULL SCREEN BACKGROUND */
+.login-bg {
+    height: 100vh;
+    background: url("/static/images/logo.png") no-repeat center;
+    background-size: contain;
+    background-color: #4b166d;
+    position: relative;
+    overflow: hidden;
+}
+
+/* DARK OVERLAY */
+.bg-overlay {
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle, rgba(75,22,109,0.85), rgba(40,5,60,0.95));
+    z-index: 1;
+}
+
+/* CENTER CARD */
+.login-wrapper {
+    position: relative;
+    z-index: 2;
+    height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* GLASS CARD */
+.login-card {
+    width: 380px;
+    padding: 30px;
+    background: rgba(255,255,255,0.15);
+    border-radius: 16px;
+    backdrop-filter: blur(12px);
+    box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+}
+
+/* INPUTS */
+.glass-input {
+    background: rgba(255,255,255,0.9);
+    border-radius: 10px;
+    border: none;
+    padding: 12px;
+}
+
+/* BUTTON */
+.btn-login {
+    background: #1677ff;
+    border: none;
+    color: #fff;
+    padding: 12px;
+    border-radius: 10px;
+    font-weight: 600;
+}
+
+.btn-login:hover {
+    background: #0f5ed7;
+}
+
+/* LINK */
+.register-link {
+    color: #ffd24d;
+    text-decoration: none;
+}
+/* RESET */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+/* PAGE */
+.auth-page {
+    min-height: 100vh;
+    font-family: "Segoe UI", sans-serif;
+    position: relative;
+}
+
+/* BACKGROUND */
+.auth-bg {
+    position: fixed;
+    inset: 0;
+    background:
+        linear-gradient(rgba(60, 0, 90, 0.85), rgba(60, 0, 90, 0.85)),
+        url("../images/logo.png") center/contain no-repeat;
+    background-size: cover;
+    z-index: 0;
+}
+
+/* CENTER CONTAINER */
+.auth-container {
+    position: relative;
+    z-index: 2;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
+
+/* WELCOME TEXT */
+.welcome-title {
+    color: white;
+    font-weight: 700;
+    margin-bottom: 20px;
+}
+
+.welcome-title span {
+    color: #f5c542;
+}
+
+/* CARD */
+.auth-card {
+    background: rgba(255, 255, 255, 0.15);
+    backdrop-filter: blur(20px);
+    padding: 35px;
+    width: 360px;
+    border-radius: 16px;
+    box-shadow: 0 25px 50px rgba(0, 0, 0, 0.35);
+}
+
+/* INPUTS */
+.auth-input {
+    margin-bottom: 15px;
+    padding: 12px;
+    border-radius: 10px;
+    border: none;
+}
+
+/* BUTTON */
+.auth-btn {
+    background: #1e73ff;
+    color: white;
+    font-weight: 600;
+    padding: 12px;
+    border-radius: 10px;
+}
+
+.auth-btn:hover {
+    background: #155bd6;
+}
+
+/* LINKS */
+.auth-link {
+    color: #f5c542;
+    text-decoration: none;
+}
+
+.auth-link:hover {
+    text-decoration: underline;
+}
+/* FIX: Remember me checkbox size */
+.form-check-input {
+    width: 14px;
+    height: 14px;
+    margin-top: 2px;
+    cursor: pointer;
+}
+
+.form-check-label {
+    margin-left: 6px;
+    font-size: 13px;
+    cursor: pointer;
+}
+.form-check {
+    display: flex;
+    align-items: center;
+}
