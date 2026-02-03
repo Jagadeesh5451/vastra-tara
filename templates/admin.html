@@ -3,16 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <title>Admin Panel | Vastra Tara</title>
-
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
 </head>
 
 <body class="container mt-4">
 
-<h2 class="mb-3">Admin Panel – Vastra Tara</h2>
+<h2 class="mb-1">Admin – VastraTara</h2>
+<p class="text-muted">Add & manage products</p>
 
-<div class="d-flex justify-content-between mb-3">
-    <span class="text-muted">Add products, colours & images</span>
+<div class="d-flex justify-content-end mb-3">
     <a href="/admin/logout" class="btn btn-outline-danger btn-sm">Logout</a>
 </div>
 
@@ -23,58 +22,24 @@
         <h5 class="mb-3">Add New Product</h5>
 
         <form method="post">
-
             <div class="row g-2 mb-2">
-                <!-- PRODUCT NAME -->
+
                 <div class="col-md-3">
-                    <input
-                        class="form-control"
-                        name="name"
-                        placeholder="Product Name"
-                        required
-                    >
+                    <input class="form-control" name="name" placeholder="Product Name" required>
                 </div>
 
-                <!-- PRICE -->
                 <div class="col-md-2">
-                    <input
-                        class="form-control"
-                        name="price"
-                        type="number"
-                        min="1"
-                        placeholder="Price"
-                        required
-                    >
+                    <input class="form-control" name="price" type="number" min="1" placeholder="Price" required>
                 </div>
 
-                <!-- QUANTITY -->
-                <div class="col-md-2">
-                    <input
-                        class="form-control"
-                        name="quantity"
-                        type="number"
-                        min="0"
-                        placeholder="Quantity"
-                        required
-                    >
-                </div>
-
-                <!-- DESCRIPTION -->
                 <div class="col-md-5">
-                    <textarea
-                        class="form-control"
-                        name="description"
-                        placeholder="Product Description"
-                        rows="2"
-                        required
-                    ></textarea>
+                    <textarea class="form-control" name="description"
+                              placeholder="Product Description" rows="2" required></textarea>
                 </div>
+
             </div>
 
-            <button class="btn btn-dark mt-2">
-                Create Product
-            </button>
-
+            <button class="btn btn-dark mt-2">Create Product</button>
         </form>
 
     </div>
@@ -84,54 +49,36 @@
 <div class="card mb-4">
     <div class="card-body">
 
-        <h5 class="mb-3">Add Colour & Images (All Angles)</h5>
+        <h5 class="mb-3">Add Colour & Images</h5>
 
-        <form method="post" enctype="multipart/form-data" action="/admin/add-images">
+        <form method="post" action="/admin/add-images" enctype="multipart/form-data" class="row g-2">
 
-            <div class="row g-2 mb-2">
+    <div class="col-md-3">
+        <select name="product_id" class="form-control" required>
+            <option value="">Select Product</option>
+            {% for p in products %}
+            <option value="{{ p[0] }}">{{ p[1] }}</option>
+            {% endfor %}
+        </select>
+    </div>
 
-                <div class="col-md-4">
-                    <select class="form-control" name="product_id" required>
-                        <option value="">Select Product</option>
-                        {% for p in products %}
-                            <option value="{{ p[0] }}">{{ p[1] }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
+    <div class="col-md-2">
+        <input type="text" name="color" class="form-control" placeholder="Colour" required>
+    </div>
 
-                <div class="col-md-3">
-                    <input
-                        class="form-control"
-                        name="color"
-                        placeholder="Colour (e.g. Red, Blue)"
-                        required
-                    >
-                </div>
+    <div class="col-md-2">
+        <input type="number" name="quantity" class="form-control" placeholder="Qty" min="1" required>
+    </div>
 
-                <div class="col-md-3">
-                    <input
-                        type="file"
-                        class="form-control"
-                        name="images"
-                        accept="image/*"
-                        multiple
-                        required
-                    >
-                </div>
+    <div class="col-md-3">
+        <input type="file" name="images" class="form-control" multiple required>
+    </div>
 
-                <div class="col-md-2">
-                    <button class="btn btn-success w-100">
-                        Upload
-                    </button>
-                </div>
+    <div class="col-md-2">
+        <button class="btn btn-success w-100">Upload</button>
+    </div>
 
-            </div>
-
-            <small class="text-muted">
-                Upload multiple images (front, back, side) for one colour
-            </small>
-
-        </form>
+</form>
 
     </div>
 </div>
@@ -139,7 +86,7 @@
 <!-- ================= PRODUCT LIST ================= -->
 <h5 class="mb-3">Products</h5>
 
-<table class="table table-bordered table-hover">
+<table class="table table-bordered table-hover align-middle">
     <thead class="table-dark">
         <tr>
             <th>ID</th>
@@ -147,7 +94,7 @@
             <th>Price</th>
             <th>Qty</th>
             <th>Description</th>
-            <th>Action</th>
+            <th style="width:260px">Actions</th>
         </tr>
     </thead>
 
@@ -158,31 +105,33 @@
             <td>{{ p[1] }}</td>
             <td>₹ {{ p[2] }}</td>
 
-            <!-- QUANTITY DISPLAY -->
             <td>
-                {% if p[4] > 0 %}
+                {% if (p[4] or 0) > 0 %}
                     <span class="badge bg-success">{{ p[4] }}</span>
                 {% else %}
                     <span class="badge bg-danger">Out</span>
                 {% endif %}
             </td>
 
-            <!-- DESCRIPTION -->
             <td style="max-width:300px;">
-                {% if p[3] %}
-                    {{ p[3][:120] }}{% if p[3]|length > 120 %}...{% endif %}
-                {% else %}
-                    <span class="text-muted">No description</span>
-                {% endif %}
+                {{ p[3][:100] }}{% if p[3]|length > 100 %}...{% endif %}
             </td>
 
-            <!-- ACTION -->
             <td>
-                <a
-                    href="/delete/{{ p[0] }}"
-                    class="btn btn-danger btn-sm"
-                    onclick="return confirm('Delete this product and all its images?')"
-                >
+                <button class="btn btn-warning btn-sm"
+                        data-bs-toggle="modal"
+                        data-bs-target="#editModal{{ p[0] }}">
+                    Edit
+                </button>
+
+                <a href="/admin/product/{{ p[0] }}/images"
+                   class="btn btn-info btn-sm text-white">
+                    Images
+                </a>
+
+                <a href="/delete/{{ p[0] }}"
+                   class="btn btn-danger btn-sm"
+                   onclick="return confirm('Delete product permanently?')">
                     Delete
                 </a>
             </td>
@@ -191,5 +140,58 @@
     </tbody>
 </table>
 
+<!-- ================= EDIT MODALS (OUTSIDE TABLE) ================= -->
+{% for p in products %}
+<div class="modal fade" id="editModal{{ p[0] }}" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <form method="post"
+              action="/admin/product/update/{{ p[0] }}"
+              class="modal-content">
+
+            <div class="modal-header">
+                <h5 class="modal-title">Edit {{ p[1] }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label">Price</label>
+                    <input type="number"
+                           class="form-control"
+                           name="price"
+                           value="{{ p[2] }}"
+                           min="1"
+                           required>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Quantity</label>
+                    <input type="number"
+                           class="form-control"
+                           name="quantity"
+                           value="{{ p[4] }}"
+                           min="0"
+                           required>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button type="button"
+                        class="btn btn-secondary"
+                        data-bs-dismiss="modal">
+                    Cancel
+                </button>
+                <button type="submit"
+                        class="btn btn-primary">
+                    Save Changes
+                </button>
+            </div>
+
+        </form>
+    </div>
+</div>
+{% endfor %}
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

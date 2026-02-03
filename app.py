@@ -19,11 +19,22 @@ app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 
 ADMIN_USERNAME = "Jagadeesh"
 ADMIN_PASSWORD = "12345"
-
-
+# ---------------- DB ----------------
 def get_db():
-    return sqlite3.connect("database.db")
+    conn = sqlite3.connect(
+        "database.db",
+        timeout=30,              # wait instead of locking
+        check_same_thread=False  # allow Flask threads
+    )
+    conn.row_factory = sqlite3.Row
 
+    # Enable WAL mode (critical)
+    conn.execute("PRAGMA journal_mode=WAL;")
+    conn.execute("PRAGMA synchronous=NORMAL;")
+
+    return conn
+
+#---------------login---------------
 def login_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
@@ -31,6 +42,7 @@ def login_required(f):
             return redirect("/login")
         return f(*args, **kwargs)
     return decorated_function
+
 #---------signup-------------------
 @app.route("/signup", methods=["GET", "POST"])
 def signup():
@@ -111,6 +123,7 @@ def login():
 def logout():
     session.clear()
     return redirect("/login")
+
 # ---------------- HOME ----------------
 @app.route("/")
 @login_required
@@ -190,8 +203,10 @@ def product_detail(product_id):
     conn.close()
 
     images_by_colour = {}
+
     for colour, image in rows:
-        images_by_colour.setdefault(colour, []).append("images/" + image)
+        safe_colour = colour if colour else "Default"
+        images_by_colour.setdefault(safe_colour, []).append("images/" + image)
 
     return render_template(
         "product.html",
@@ -201,6 +216,7 @@ def product_detail(product_id):
     )
 
 
+# ======================= ADMIN =======================
 
 # ---------------- ADMIN LOGIN ----------------
 @app.route("/admin/login", methods=["GET", "POST"])
@@ -216,29 +232,7 @@ def admin_login():
 
     return render_template("admin_login.html")
 
-#------------------orders------------
-@app.route("/orders")
-def orders():
-    user_id = session.get("user_id")   # ✅ SAFE
-
-    if not user_id:
-        return redirect("/login")
-
-    conn = get_db()
-    cur = conn.cursor()
-
-    cur.execute("""
-        SELECT product_name, colour, quantity, total, created_at
-        FROM orders
-        WHERE user_id = ?
-        ORDER BY created_at DESC
-    """, (user_id,))
-
-    orders = cur.fetchall()
-    conn.close()
-
-    return render_template("orders.html", orders=orders)
-# ---------------- ADMIN PANEL ----------------
+# ---------- ADMIN PANEL ----------
 @app.route("/admin", methods=["GET", "POST"])
 def admin():
     if not session.get("admin_logged_in"):
@@ -247,32 +241,173 @@ def admin():
     conn = get_db()
     cur = conn.cursor()
 
-    # ---------- CREATE PRODUCT ----------
     if request.method == "POST":
-        name = request.form.get("name")
-        price = request.form.get("price")
-        quantity = request.form.get("quantity")
-        description = request.form.get("description")
+        cur.execute(
+            "INSERT INTO products (name,price,quantity,description) VALUES (?,?,?,?)",
+            (
+                request.form.get("name"),
+                request.form.get("price"),
+                request.form.get("quantity"),
+                request.form.get("description")
+            )
+        )
+        conn.commit()
 
-        if name and price and quantity:
-            cur.execute("""
-                INSERT INTO products (name, price, quantity, description)
-                VALUES (?, ?, ?, ?)
-            """, (name, price, quantity, description))
-
-            conn.commit()
-
-    # ---------- FETCH PRODUCTS ----------
-    cur.execute("""
-        SELECT id, name, price, description, quantity
-        FROM products
-        ORDER BY id DESC
-    """)
+    cur.execute("SELECT id,name,price,description,quantity FROM products ORDER BY id DESC")
     products = cur.fetchall()
-
     conn.close()
 
     return render_template("admin.html", products=products)
+
+# ---------- UPDATE PRODUCT ----------
+@app.route("/admin/product/update/<int:product_id>", methods=["POST"])
+def admin_update_product(product_id):
+    if not session.get("admin_logged_in"):
+        return redirect("/admin/login")
+
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute(
+        "UPDATE products SET price=?, quantity=? WHERE id=?",
+        (request.form.get("price"), request.form.get("quantity"), product_id)
+    )
+    conn.commit()
+    conn.close()
+    return redirect("/admin")
+
+#--------Admin Product Images------------
+@app.route("/admin/product/<int:product_id>/images")
+def admin_product_images(product_id):
+    if not session.get("admin_logged_in"):
+        return redirect("/admin/login")
+
+    conn = get_db()
+    cur = conn.cursor()
+
+    # Fetch product
+    cur.execute(
+        "SELECT id, name FROM products WHERE id = ?",
+        (product_id,)
+    )
+    product = cur.fetchone()
+
+    if not product:
+        conn.close()
+        return redirect("/admin")
+
+    # Fetch images
+    cur.execute("""
+        SELECT id, color, image
+        FROM product_images
+        WHERE product_id = ?
+    """, (product_id,))
+    images = cur.fetchall()
+
+    conn.close()
+
+    return render_template(
+        "admin_product_images.html",
+        product=product,
+        images=images
+    )
+
+# ---------- ADD MORE IMAGES ----------
+@app.route("/admin/product/<int:product_id>/add-images", methods=["POST"])
+def admin_add_more_images(product_id):
+    if not session.get("admin_logged_in"):
+        return redirect("/admin/login")
+
+    conn = get_db()
+    cur = conn.cursor()
+
+    for img in request.files.getlist("images"):
+        if img.filename:
+            filename = secure_filename(img.filename)
+            img.save(os.path.join(app.config["UPLOAD_FOLDER"], filename))
+            color = request.form.get("color") or "default"
+
+            cur.execute(
+                "INSERT INTO product_images (product_id, color, image) VALUES (?, ?, ?)",
+                (product_id, color, filename)
+            )
+
+    conn.commit()
+    conn.close()
+    return redirect(request.referrer)
+
+# ---------- REPLACE IMAGE ----------
+@app.route("/admin/image/replace/<int:image_id>", methods=["POST"])
+def replace_image(image_id):
+    if not session.get("admin_logged_in"):
+        return redirect("/admin/login")
+
+    file = request.files.get("image")
+    if not file or not file.filename:
+        return redirect(request.referrer)
+
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("SELECT image FROM product_images WHERE id=?", (image_id,))
+    old = cur.fetchone()
+
+    if old:
+        old_path = os.path.join(app.config["UPLOAD_FOLDER"], old[0])
+        if os.path.exists(old_path):
+            os.remove(old_path)
+
+        filename = secure_filename(file.filename)
+        file.save(os.path.join(app.config["UPLOAD_FOLDER"], filename))
+        cur.execute("UPDATE product_images SET image=? WHERE id=?", (filename, image_id))
+
+    conn.commit()
+    conn.close()
+    return redirect(request.referrer)
+
+# ---------- DELETE IMAGE ----------
+@app.route("/admin/image/delete/<int:image_id>")
+def delete_image(image_id):
+    if not session.get("admin_logged_in"):
+        return redirect("/admin/login")
+
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("SELECT image FROM product_images WHERE id=?", (image_id,))
+    row = cur.fetchone()
+
+    if row:
+        path = os.path.join(app.config["UPLOAD_FOLDER"], row[0])
+        if os.path.exists(path):
+            os.remove(path)
+        cur.execute("DELETE FROM product_images WHERE id=?", (image_id,))
+
+    conn.commit()
+    conn.close()
+    return redirect(request.referrer)
+
+#------------------orders------------
+@app.route("/orders")
+@login_required
+def orders():
+    conn = get_db()
+    cur = conn.cursor()
+
+    cur.execute("""
+        SELECT 
+            id,
+            product_name,
+            colour,
+            quantity,
+            total,
+            created_at
+        FROM orders
+        WHERE user_id = ?
+        ORDER BY created_at DESC
+    """, (session["user_id"],))
+
+    orders = cur.fetchall()
+    conn.close()
+
+    return render_template("orders.html", orders=orders)
 
 # ---------------- ADMIN ADD IMAGES ----------------
 @app.route("/admin/add-images", methods=["POST"])
@@ -282,23 +417,37 @@ def add_images():
 
     product_id = request.form.get("product_id")
     color = request.form.get("color")
+    quantity = int(request.form.get("quantity", 0))
     images = request.files.getlist("images")
 
     conn = get_db()
     cur = conn.cursor()
 
+    # ✅ ADD STOCK TO PRODUCT (THIS WAS MISSING)
+    if quantity > 0:
+        cur.execute("""
+            UPDATE products
+            SET quantity = quantity + ?
+            WHERE id = ?
+        """, (quantity, product_id))
+
+    # ✅ SAVE IMAGES (unchanged)
     for img in images:
         if img.filename:
             filename = secure_filename(img.filename)
             img.save(os.path.join(app.config["UPLOAD_FOLDER"], filename))
-            cur.execute(
-                "INSERT INTO product_images (product_id, color, image) VALUES (?, ?, ?)",
-                (product_id, color, filename)
-            )
+
+            cur.execute("""
+                INSERT INTO product_images (product_id, color, image)
+                VALUES (?, ?, ?)
+            """, (product_id, color, filename))
 
     conn.commit()
     conn.close()
+
     return redirect("/admin")
+
+
 
 
 # ---------------- ADMIN LOGOUT ----------------
@@ -310,12 +459,22 @@ def admin_logout():
 
 # ---------------- DELETE PRODUCT ----------------
 @app.route("/delete/<int:id>")
+@login_required
 def delete(id):
     conn = get_db()
     cur = conn.cursor()
-    cur.execute("DELETE FROM products WHERE id=?", (id,))
-    conn.commit()
-    conn.close()
+
+    try:
+        cur.execute("DELETE FROM product_images WHERE product_id = ?", (id,))
+        cur.execute("DELETE FROM orders WHERE product_id = ?", (id,))
+        cur.execute("DELETE FROM products WHERE id = ?", (id,))
+        conn.commit()
+    except Exception as e:
+        conn.rollback()
+        print("Delete error:", e)
+    finally:
+        conn.close()
+
     return redirect("/admin")
 
 
@@ -336,10 +495,12 @@ def add_to_cart():
     cur = conn.cursor()
 
     # -------- Fetch Stock --------
-    cur.execute(
-        "SELECT quantity FROM products WHERE id = ?",
-        (product_id,)
-    )
+    cur.execute("""
+        SELECT quantity
+        FROM product_images
+        WHERE product_id = ? AND color = ?
+        LIMIT 1
+    """, (product_id, colour))
     row = cur.fetchone()
 
     if not row:
@@ -453,11 +614,22 @@ def remove_from_cart(index):
 # ---------------- BUY NOW ----------------
 @app.route("/buy_now/<int:id>", methods=["POST"])
 def buy_now(id):
-    colour = request.form.get("colour")
+    colour = request.form.get("colour")  # may be None
     qty = int(request.form.get("quantity", 1))
 
     conn = get_db()
     cur = conn.cursor()
+
+    # 🔹 If colour is NOT provided, pick first image automatically
+    if not colour:
+        cur.execute("""
+            SELECT color
+            FROM product_images
+            WHERE product_id = ?
+            LIMIT 1
+        """, (id,))
+        row = cur.fetchone()
+        colour = row[0] if row else None
 
     cur.execute("""
         SELECT 
@@ -468,7 +640,8 @@ def buy_now(id):
             (
                 SELECT image
                 FROM product_images
-                WHERE product_id = p.id AND color = ?
+                WHERE product_id = p.id
+                AND color = ?
                 LIMIT 1
             )
         FROM products p
@@ -495,13 +668,14 @@ def buy_now(id):
         "quantity": qty,
         "subtotal": subtotal,
         "image": image,
-        "colour": colour
+        "colour": colour or "Default"
     }]
 
     session["buy_now_total"] = subtotal
     session.modified = True
 
     return redirect("/checkout")
+
 
 
 # ---------------- CHECKOUT ----------------
@@ -548,11 +722,7 @@ def checkout():
                 continue
 
             pid, name, price, stock, image = row
-            qty = int(item.get("quantity", 1))
-
-            # ❌ Prevent over-buy
-            if qty > stock:
-                qty = stock
+            qty = min(int(item.get("quantity", 1)), stock)
 
             subtotal = price * qty
             total += subtotal
@@ -577,9 +747,11 @@ def checkout():
 
         if name and phone and address:
 
-            # -------- WhatsApp Message --------
-            message = "New Order - Vastra Tara 🧵\n\n"
+            message = "New Order - VastraTara 🧵\n\n"
             message += f"Name: {name}\nPhone: {phone}\nAddress: {address}\n\nProducts:\n"
+
+            conn = get_db()
+            cur = conn.cursor()
 
             for p in products:
                 message += (
@@ -587,14 +759,7 @@ def checkout():
                     f"x{p['quantity']} = ₹{p['subtotal']}\n"
                 )
 
-            message += f"\nTotal: ₹{total}\nPayment: Cash on Delivery"
-
-            # ================= SAVE ORDER + UPDATE STOCK =================
-            conn = get_db()
-            cur = conn.cursor()
-
-            for p in products:
-                # 🔹 SAVE ORDER
+                # Save order
                 cur.execute("""
                     INSERT INTO orders (
                         user_id, product_name, colour,
@@ -609,7 +774,7 @@ def checkout():
                     p["subtotal"]
                 ))
 
-                # 🔹 REDUCE STOCK
+                # Reduce stock
                 cur.execute("""
                     UPDATE products
                     SET quantity = quantity - ?
@@ -619,18 +784,74 @@ def checkout():
             conn.commit()
             conn.close()
 
-            # ================= CLEAR SESSIONS =================
             session.pop("buy_now", None)
             session.pop("buy_now_total", None)
             session.pop("cart", None)
 
-            # ================= REDIRECT TO WHATSAPP =================
+            message += f"\nTotal: ₹{total}\nPayment: Cash on Delivery"
+
             whatsapp_url = (
                 "https://wa.me/919390708120?text="
                 + urllib.parse.quote(message)
             )
             return redirect(whatsapp_url)
 
-    return render_template("checkout.html", products=products, total=total)
+    # ✅ THIS MUST BE INSIDE checkout()
+    return render_template(
+        "checkout.html",
+        products=products,
+        total=total
+    )
+@app.route("/cancel_order/<int:order_id>")
+@login_required
+def cancel_order(order_id):
+    conn = get_db()
+    cur = conn.cursor()
+
+    cur.execute("""
+        SELECT product_name, colour, quantity, total
+        FROM orders
+        WHERE id = ? AND user_id = ?
+    """, (order_id, session["user_id"]))
+
+    order = cur.fetchone()
+    if not order:
+        conn.close()
+        return redirect("/orders")
+
+    product_name, colour, qty, total = order
+
+    # Restore stock
+    cur.execute("""
+        UPDATE products
+        SET quantity = quantity + ?
+        WHERE name = ?
+    """, (qty, product_name))
+
+    # Delete order
+    cur.execute("DELETE FROM orders WHERE id = ?", (order_id,))
+    conn.commit()
+    conn.close()
+
+    # WhatsApp message
+    customer = session.get("full_name", "Customer")
+
+    message = (
+        "❌ *Order Cancelled - VastraTara*\n\n"
+        f"Customer: {customer}\n"
+        f"Product: {product_name}\n"
+        f"Colour: {colour}\n"
+        f"Quantity: {qty}\n"
+        f"Amount: ₹{total}\n\n"
+        "Stock restored successfully."
+    )
+
+    whatsapp_url = (
+        "https://wa.me/919390708120?text="
+        + urllib.parse.quote(message)
+    )
+
+    return redirect(whatsapp_url)
+
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(debug=True, use_reloader=False)

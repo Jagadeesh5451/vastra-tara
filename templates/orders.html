@@ -5,33 +5,46 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
 </head>
 <body class="bg-light">
+<div style="position: absolute; top: 20px; right: 20px; z-index: 1000;">
+    <button onclick="history.back()" class="btn btn-outline-secondary">
+        ← Back
+    </button>
+</div>
 
 <div class="container mt-5">
     <h3 class="mb-4">My Orders</h3>
 
     {% if orders %}
         <table class="table table-bordered">
-            <thead class="table-dark">
-                <tr>
-                    <th>Product</th>
-                    <th>Colour</th>
-                    <th>Qty</th>
-                    <th>Total</th>
-                    <th>Date</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for o in orders %}
-                <tr>
-                    <td>{{ o[0] }}</td>
-                    <td>{{ o[1] }}</td>
-                    <td>{{ o[2] }}</td>
-                    <td>₹ {{ o[3] }}</td>
-                    <td>{{ o[4] }}</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+    <thead>
+        <tr>
+            <th>Product</th>
+            <th>Colour</th>
+            <th>Qty</th>
+            <th>Total</th>
+            <th>Date</th>
+            <th>Action</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for order in orders %}
+        <tr>
+            <td>{{ order[1] }}</td>
+            <td>{{ order[2] }}</td>
+            <td>{{ order[3] }}</td>
+            <td>₹ {{ order[4] }}</td>
+            <td>{{ order[5] }}</td>
+            <td>
+                <a href="/cancel_order/{{ order[0] }}"
+                   class="btn btn-danger btn-sm"
+                   onclick="return confirm('Cancel this order?')">
+                   Cancel
+                </a>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
     {% else %}
         <p class="text-muted">No orders yet</p>
     {% endif %}

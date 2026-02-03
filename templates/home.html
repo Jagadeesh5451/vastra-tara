@@ -41,7 +41,7 @@
 
             {% if session.get("full_name") %}
                 <span class="user-greet">
-                    Hello, {{ session.get("full_name") }}
+                    Hello {{ session.get("full_name") }}
                 </span>
 
                 <a href="/cart" class="nav-btn cart-btn">
@@ -100,7 +100,7 @@
                     <!-- ACTION BUTTONS -->
                     <div class="mt-auto d-grid gap-2">
 
-                        {% if p[4] > 0 %}
+                        {% if (p[4] or 0) > 0 %}
                             <!-- ADD TO CART -->
                             <button class="btn btn-dark"
                                     onclick="handleAddToCart({{ p[0] }})">
