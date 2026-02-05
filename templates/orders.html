@@ -4,9 +4,11 @@
     <title>My Orders | Vastra Tara</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
 </head>
+
 <body class="bg-light">
-<div style="position: absolute; top: 20px; right: 20px; z-index: 1000;">
-    <button onclick="history.back()" class="btn btn-outline-secondary">
+
+<div style="position: absolute; top: 20px; right: 20px;">
+    <button onclick="window.location.href='/'" class="btn btn-outline-secondary">
         ← Back
     </button>
 </div>
@@ -15,40 +17,43 @@
     <h3 class="mb-4">My Orders</h3>
 
     {% if orders %}
-        <table class="table table-bordered">
-    <thead>
-        <tr>
-            <th>Product</th>
-            <th>Colour</th>
-            <th>Qty</th>
-            <th>Total</th>
-            <th>Date</th>
-            <th>Action</th>
-        </tr>
-    </thead>
-    <tbody>
+    <table class="table table-bordered align-middle">
+        <thead>
+            <tr>
+                <th>Product</th>
+                <th>Colour</th>
+                <th>Qty</th>
+                <th>Total</th>
+                <th>Date</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+
+        <tbody>
         {% for order in orders %}
-        <tr>
-            <td>{{ order[1] }}</td>
-            <td>{{ order[2] }}</td>
-            <td>{{ order[3] }}</td>
-            <td>₹ {{ order[4] }}</td>
-            <td>{{ order[5].split(' ')[0] }}</td>
-            <td>
-                <a href="/cancel_order/{{ order[0] }}"
-                   class="btn btn-danger btn-sm"
-                   onclick="return confirm('Cancel this order?')">
-                   Cancel
-                </a>
-            </td>
-        </tr>
+            <tr>
+                <td>{{ order[1] }}</td>
+                <td>{{ order[2] }}</td>
+                <td>{{ order[3] }}</td>
+                <td>₹ {{ order[4] }}</td>
+
+                <!-- ✅ DATE ONLY -->
+                <td>{{ order[5][:10] }}</td>
+
+                <td>
+                    <a href="/cancel_order/{{ order[0] }}"
+                       class="btn btn-danger btn-sm"
+                       onclick="return confirm('Cancel this order?')">
+                        Cancel
+                    </a>
+                </td>
+            </tr>
         {% endfor %}
-    </tbody>
-</table>
+        </tbody>
+    </table>
     {% else %}
         <p class="text-muted">No orders yet</p>
     {% endif %}
-
 </div>
 
 </body>
