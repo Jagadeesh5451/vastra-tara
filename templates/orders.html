@@ -33,7 +33,7 @@
             <td>{{ order[2] }}</td>
             <td>{{ order[3] }}</td>
             <td>₹ {{ order[4] }}</td>
-            <td>{{ order[5] }}</td>
+            <td>{{ order[5].split(' ')[0] }}</td>
             <td>
                 <a href="/cancel_order/{{ order[0] }}"
                    class="btn btn-danger btn-sm"

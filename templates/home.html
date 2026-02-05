@@ -2,6 +2,10 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+
+    <!-- ✅ REQUIRED FOR MOBILE RESPONSIVE -->
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
     <title>VastraTara | Online Store</title>
 
     <!-- Bootstrap -->
@@ -13,87 +17,115 @@
 
 <body class="bg-light">
 
-<!-- NAVBAR -->
+<!-- ================= NAVBAR ================= -->
 <nav class="navbar navbar-expand-lg navbar-dark classic-navbar">
-    <div class="container-fluid px-4">
+    <div class="container-fluid px-3">
 
-        <!-- LEFT: LOGO + BRAND -->
+        <!-- LOGO + BRAND -->
         <div class="d-flex align-items-center gap-2">
             <img src="{{ url_for('static', filename='images/logo.png') }}"
-                 class="brand-logo" alt="VastraTara">
+                 class="brand-logo" alt="VastraTara" style="height:40px;">
 
             <a class="navbar-brand brand-text" href="/">
                 VastraTara
             </a>
         </div>
 
-        <!-- CENTER: SEARCH -->
-        <form class="d-flex search-box" method="get" action="/">
-            <input class="form-control search-input"
-                   type="search"
-                   name="search"
-                   placeholder="Search for products">
-            <button class="btn btn-search">Search</button>
-        </form>
+        <!-- MOBILE TOGGLER -->
+        <button class="navbar-toggler" type="button"
+                data-bs-toggle="collapse"
+                data-bs-target="#navbarContent">
+            <span class="navbar-toggler-icon"></span>
+        </button>
 
-        <!-- RIGHT: USER ACTIONS -->
-        <div class="d-flex align-items-center gap-3">
+        <!-- COLLAPSIBLE CONTENT -->
+        <div class="collapse navbar-collapse" id="navbarContent">
 
-            {% if session.get("full_name") %}
-                <span class="user-greet">
-                    Hello {{ session.get("full_name") }}
-                </span>
+            <!-- SEARCH -->
+            <form class="d-flex my-2 my-lg-0 mx-lg-auto"
+                  method="get" action="/">
+                <input class="form-control me-2"
+                       type="search"
+                       name="search"
+                       placeholder="Search for products">
+                <button class="btn btn-warning">Search</button>
+            </form>
 
-                <a href="/cart" class="nav-btn cart-btn">
-                    🛒 Cart
-                </a>
+            <!-- USER ACTIONS -->
+            <div class="d-flex align-items-center gap-2 ms-lg-auto">
 
-                <a href="/orders" class="nav-btn orders-btn">
-                    📦 Orders
-                </a>
+                {% if session.get("full_name") %}
+                    <span class="text-white small">
+                        Hi {{ session.get("full_name") }}
+                    </span>
 
-                <a href="/logout" class="nav-btn logout-btn">
-                    Logout
-                </a>
-            {% else %}
-                <a href="/login" class="nav-btn login-btn">
-                    Login
-                </a>
-            {% endif %}
+                    <a href="/cart" class="btn btn-light btn-sm">
+                        🛒 Cart
+                    </a>
 
+                    <a href="/orders" class="btn btn-light btn-sm">
+                        📦 Orders
+                    </a>
+
+                    <a href="/logout" class="btn btn-outline-light btn-sm">
+                        Logout
+                    </a>
+                {% else %}
+                    <a href="/login" class="btn btn-light btn-sm">
+                        Login
+                    </a>
+                {% endif %}
+
+            </div>
         </div>
     </div>
 </nav>
 
-<!-- PRODUCTS -->
+<!-- ================= PRODUCTS ================= -->
 <div class="container mt-4">
 
-    <h5 class="mb-3 fw-bold">Top Picks for You</h5>
+    <div class="d-flex justify-content-between align-items-center mb-3">
+    <h5 class="fw-bold mb-0">
+        {% if request.args.get("search") %}
+            Search Results
+        {% else %}
+            Top Picks for You
+        {% endif %}
+    </h5>
+
+    {% if request.args.get("search") %}
+        <a href="/" class="btn btn-outline-secondary btn-sm">
+            ← Back to Home
+        </a>
+    {% endif %}
+</div>
 
     {% if products %}
-    <div class="row g-4">
+    <div class="row g-3">
 
         {% for p in products %}
         <!-- p = (id, name, price, image, quantity) -->
 
-        <div class="col-lg-3 col-md-4 col-sm-6">
+        <div class="col-12 col-sm-6 col-md-4 col-lg-3">
             <div class="card product-card h-100 shadow-sm">
 
                 <!-- IMAGE -->
                 {% if p[3] %}
                     <img src="{{ url_for('static', filename='images/' + p[3]) }}"
-                         class="product-img">
+                         class="img-fluid w-100"
+                         style="height:220px; object-fit:cover;">
                 {% else %}
                     <img src="{{ url_for('static', filename='images/no-image.png') }}"
-                         class="product-img">
+                         class="img-fluid w-100"
+                         style="height:220px; object-fit:cover;">
                 {% endif %}
 
                 <!-- CARD BODY -->
                 <div class="card-body text-center d-flex flex-column">
 
-                    <p class="product-title mb-1">{{ p[1] }}</p>
+                    <p class="fw-semibold mb-1">{{ p[1] }}</p>
 
-                    <p class="product-price fw-bold text-success mb-3">
+                    <p class="fw-bold text-success mb-3">
                         ₹ {{ p[2] }}
                     </p>
 
@@ -135,7 +167,7 @@
 
 </div>
 
-<!-- COLOUR SELECTION MODAL -->
+<!-- ================= COLOUR MODAL ================= -->
 <div class="modal fade" id="colourModal" tabindex="-1">
   <div class="modal-dialog modal-dialog-centered">
     <form method="post" action="/add_to_cart" class="modal-content">
@@ -148,6 +180,7 @@
       <div class="modal-body" id="colourOptions"></div>
 
       <input type="hidden" name="product_id" id="modalProductId">
+      <input type="hidden" name="quantity" value="1">
 
       <div class="modal-footer">
         <button class="btn btn-dark">Add to Cart</button>
@@ -157,7 +190,7 @@
   </div>
 </div>
 
-<!-- JS -->
+<!-- ================= JS ================= -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 
 <script>
@@ -166,13 +199,11 @@ const productColours = {{ product_colours | tojson }};
 function handleAddToCart(productId) {
     const colours = productColours[productId];
 
-    // Single colour → direct add
     if (!colours || colours.length === 1) {
         submitAddToCart(productId, colours ? colours[0] : null);
         return;
     }
 
-    // Multiple colours → modal
     document.getElementById("modalProductId").value = productId;
 
     let html = "";

@@ -25,16 +25,27 @@
             <div class="row g-2 mb-2">
 
                 <div class="col-md-3">
-                    <input class="form-control" name="name" placeholder="Product Name" required>
+                    <input class="form-control" name="name"
+                           placeholder="Product Name" required>
                 </div>
 
                 <div class="col-md-2">
-                    <input class="form-control" name="price" type="number" min="1" placeholder="Price" required>
+                    <input class="form-control" name="price"
+                           type="number" min="1"
+                           placeholder="Price" required>
+                </div>
+
+                <!-- ✅ ADD THIS QTY FIELD -->
+                <div class="col-md-2">
+                    <input class="form-control" name="quantity"
+                           type="number" min="0"
+                           placeholder="Qty" required>
                 </div>
 
                 <div class="col-md-5">
                     <textarea class="form-control" name="description"
-                              placeholder="Product Description" rows="2" required></textarea>
+                              placeholder="Product Description"
+                              rows="2" required></textarea>
                 </div>
 
             </div>
@@ -44,7 +55,6 @@
 
     </div>
 </div>
-
 <!-- ================= ADD COLOUR + IMAGES ================= -->
 <div class="card mb-4">
     <div class="card-body">
@@ -65,11 +75,6 @@
     <div class="col-md-2">
         <input type="text" name="color" class="form-control" placeholder="Colour" required>
     </div>
-
-    <div class="col-md-2">
-        <input type="number" name="quantity" class="form-control" placeholder="Qty" min="1" required>
-    </div>
-
     <div class="col-md-3">
         <input type="file" name="images" class="form-control" multiple required>
     </div>

@@ -128,28 +128,49 @@ def logout():
 @app.route("/")
 @login_required
 def home():
+    search = request.args.get("search", "").strip()
+
     conn = get_db()
     cur = conn.cursor()
 
-    # ✅ FETCH ALL PRODUCTS (including out of stock)
-    cur.execute("""
-        SELECT 
-            p.id,
-            p.name,
-            p.price,
-            (
-                SELECT image
-                FROM product_images
-                WHERE product_id = p.id
-                LIMIT 1
-            ) AS image,
-            CAST(p.quantity AS INTEGER) AS quantity
-        FROM products p
-        ORDER BY p.id DESC
-    """)
+    if search:
+        cur.execute("""
+            SELECT 
+                p.id,
+                p.name,
+                p.price,
+                (
+                    SELECT image
+                    FROM product_images
+                    WHERE product_id = p.id
+                    LIMIT 1
+                ) AS image,
+                CAST(p.quantity AS INTEGER) AS quantity
+            FROM products p
+            WHERE p.name LIKE ?
+               OR p.description LIKE ?
+            ORDER BY p.id DESC
+        """, (f"%{search}%", f"%{search}%"))
+    else:
+        cur.execute("""
+            SELECT 
+                p.id,
+                p.name,
+                p.price,
+                (
+                    SELECT image
+                    FROM product_images
+                    WHERE product_id = p.id
+                    LIMIT 1
+                ) AS image,
+                CAST(p.quantity AS INTEGER) AS quantity
+            FROM products p
+            ORDER BY p.id DESC
+        """)
+
     products = cur.fetchall()
 
-    # ✅ Fetch available colours per product
+    # Fetch available colours
     cur.execute("""
         SELECT product_id, GROUP_CONCAT(DISTINCT color)
         FROM product_images
@@ -169,7 +190,6 @@ def home():
         products=products,
         product_colours=product_colours
     )
-
 # ---------------- PRODUCT DETAILS ----------------
 @app.route("/product/<int:product_id>")
 def product_detail(product_id):
@@ -274,7 +294,6 @@ def admin_update_product(product_id):
     conn.commit()
     conn.close()
     return redirect("/admin")
-
 #--------Admin Product Images------------
 @app.route("/admin/product/<int:product_id>/images")
 def admin_product_images(product_id):
@@ -417,21 +436,11 @@ def add_images():
 
     product_id = request.form.get("product_id")
     color = request.form.get("color")
-    quantity = int(request.form.get("quantity", 0))
     images = request.files.getlist("images")
 
     conn = get_db()
     cur = conn.cursor()
 
-    # ✅ ADD STOCK TO PRODUCT (THIS WAS MISSING)
-    if quantity > 0:
-        cur.execute("""
-            UPDATE products
-            SET quantity = quantity + ?
-            WHERE id = ?
-        """, (quantity, product_id))
-
-    # ✅ SAVE IMAGES (unchanged)
     for img in images:
         if img.filename:
             filename = secure_filename(img.filename)
@@ -444,7 +453,6 @@ def add_images():
 
     conn.commit()
     conn.close()
-
     return redirect("/admin")
 
 
