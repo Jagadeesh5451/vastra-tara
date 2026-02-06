@@ -693,27 +693,101 @@ def checkout():
     products = []
     total = 0
 
-    # ================= BUY NOW =================
-    if session.get("buy_now"):
-        products = session["buy_now"]
-        total = session.get("buy_now_total", 0)
+    # ================= PLACE ORDER =================
+    if request.method == "POST" and request.form.get("place_order"):
+
+        name = request.form.get("name")
+        phone = request.form.get("phone")
+        address = request.form.get("address")
+
+        products = session.get("checkout_products", [])
+        total = session.get("checkout_total", 0)
+
+        if not products or not name or not phone or not address:
+            return redirect("/checkout")
+
+        message = "🧵 *New Order - VastraTara*\n\n"
+        message += f"👤 Name: {name}\n"
+        message += f"📞 Phone: {phone}\n"
+        message += f"🏠 Address: {address}\n\n"
+        message += "*Products:*\n"
+
+        conn = get_db()
+        cur = conn.cursor()
+
+        for p in products:
+            message += (
+                f"- {p['name']} ({p['colour']}) "
+                f"x{p['quantity']} = ₹{p['subtotal']}\n"
+            )
+
+            cur.execute("""
+                INSERT INTO orders (
+                    user_id, product_name, colour,
+                    quantity, price, total
+                ) VALUES (?, ?, ?, ?, ?, ?)
+            """, (
+                session["user_id"],
+                p["name"],
+                p["colour"],
+                p["quantity"],
+                p["price"],
+                p["subtotal"]
+            ))
+
+            cur.execute("""
+                UPDATE products
+                SET quantity = quantity - ?
+                WHERE id = ? AND quantity >= ?
+            """, (p["quantity"], p["id"], p["quantity"]))
+
+        conn.commit()
+        conn.close()
+
+        # clear sessions safely
+        session.pop("checkout_products", None)
+        session.pop("checkout_total", None)
+        session.pop("cart", None)
+        session.pop("buy_now", None)
+        session.pop("buy_now_total", None)
+
+        message += f"\n💰 *Total: ₹{total}*\n"
+        message += "💳 Payment: Cash on Delivery"
+
+        whatsapp_url = (
+            "https://wa.me/919390708120?text="
+            + urllib.parse.quote(message)
+        )
+        session["whatsapp_url"] = whatsapp_url
+        return redirect("/order-success")
 
     # ================= FROM CART =================
-    elif request.method == "POST" and request.form.get("from_cart"):
+    if request.method == "POST" and request.form.get("from_cart"):
+
+        cart = session.get("cart", [])
+        if not cart:
+            return redirect("/cart")
+
         conn = get_db()
         cur = conn.cursor()
 
         selected_ids = request.form.getlist("selected_products")
 
         for idx in selected_ids:
-            item = session["cart"][int(idx)]
+            idx = int(idx)
+
+            if idx >= len(cart):
+                continue
+
+            item = cart[idx]
+            qty = int(request.form.get(f"quantity_{idx}", 1))
+
+            if qty <= 0:
+                continue
 
             cur.execute("""
                 SELECT 
-                    p.id,
-                    p.name,
-                    p.price,
-                    p.quantity,
+                    p.id, p.name, p.price,
                     (
                         SELECT image
                         FROM product_images
@@ -729,9 +803,7 @@ def checkout():
             if not row:
                 continue
 
-            pid, name, price, stock, image = row
-            qty = min(int(item.get("quantity", 1)), stock)
-
+            pid, name, price, image = row
             subtotal = price * qty
             total += subtotal
 
@@ -747,69 +819,23 @@ def checkout():
 
         conn.close()
 
-    # ================= PLACE ORDER =================
-    if request.method == "POST" and products:
-        name = request.form.get("name")
-        phone = request.form.get("phone")
-        address = request.form.get("address")
+        session["checkout_products"] = products
+        session["checkout_total"] = total
 
-        if name and phone and address:
+    # ================= BUY NOW =================
+    elif session.get("buy_now"):
+        products = session["buy_now"]
+        total = session.get("buy_now_total", 0)
 
-            message = "New Order - VastraTara 🧵\n\n"
-            message += f"Name: {name}\nPhone: {phone}\nAddress: {address}\n\nProducts:\n"
+        session["checkout_products"] = products
+        session["checkout_total"] = total
 
-            conn = get_db()
-            cur = conn.cursor()
-
-            for p in products:
-                message += (
-                    f"- {p['name']} ({p['colour']}) "
-                    f"x{p['quantity']} = ₹{p['subtotal']}\n"
-                )
-
-                # Save order
-                cur.execute("""
-                    INSERT INTO orders (
-                        user_id, product_name, colour,
-                        quantity, price, total
-                    ) VALUES (?, ?, ?, ?, ?, ?)
-                """, (
-                    session["user_id"],
-                    p["name"],
-                    p["colour"],
-                    p["quantity"],
-                    p["price"],
-                    p["subtotal"]
-                ))
-
-                # Reduce stock
-                cur.execute("""
-                    UPDATE products
-                    SET quantity = quantity - ?
-                    WHERE id = ? AND quantity >= ?
-                """, (p["quantity"], p["id"], p["quantity"]))
-
-            conn.commit()
-            conn.close()
-
-            session.pop("buy_now", None)
-            session.pop("buy_now_total", None)
-            session.pop("cart", None)
-
-            message += f"\nTotal: ₹{total}\nPayment: Cash on Delivery"
-
-            whatsapp_url = (
-                "https://wa.me/919390708120?text="
-                + urllib.parse.quote(message)
-            )
-            return redirect(whatsapp_url)
-
-    # ✅ THIS MUST BE INSIDE checkout()
     return render_template(
         "checkout.html",
         products=products,
         total=total
     )
+
 @app.route("/cancel_order/<int:order_id>")
 @login_required
 def cancel_order(order_id):
@@ -860,6 +886,12 @@ def cancel_order(order_id):
     )
 
     return redirect(whatsapp_url)
+
+@app.route("/order-success")
+@login_required
+def order_success():
+    return render_template("order_success.html")
+
 
 if __name__ == "__main__":
     app.run(debug=True, use_reloader=False)

@@ -19,7 +19,7 @@
     {% if products %}
     <form method="post" action="/checkout">
 
-        <!-- ✅ REQUIRED FLAG -->
+        <!-- REQUIRED FLAG -->
         <input type="hidden" name="from_cart" value="1">
 
         {% for p in products %}
@@ -54,7 +54,6 @@
                             Colour: <b>{{ p.colour }}</b>
                         </p>
 
-                        <!-- STOCK -->
                         {% if p.stock > 0 %}
                             <span class="badge bg-success">
                                 In Stock ({{ p.stock }})
@@ -73,7 +72,7 @@
                         </a>
                     </div>
 
-                    <!-- QUANTITY -->
+                    <!-- QUANTITY (IMPORTANT FIX) -->
                     <div class="col-md-2 mt-2 mt-md-0">
                         <label class="small text-muted">Qty</label>
                         <input type="number"
@@ -81,7 +80,7 @@
                                class="form-control"
                                min="1"
                                max="{{ p.stock }}"
-                               value="1"
+                               value="{{ p.quantity }}"
                                {% if p.stock == 0 %}disabled{% endif %}>
                     </div>
 

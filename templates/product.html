@@ -4,38 +4,19 @@
     <meta charset="UTF-8">
     <title>{{ product[1] }} | VastraTara</title>
 
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-
-    <!-- Bootstrap -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
 
     <style>
-        /* Image zoom */
-        .image-wrapper {
-            overflow: hidden;
-            border-radius: 8px;
-        }
-        #mainImage {
-            transition: transform 0.4s ease;
-        }
-        #mainImage:hover {
-            transform: scale(1.1);
-        }
-
-        /* Thumbnails */
         .thumb {
             width: 70px;
             height: 90px;
             object-fit: cover;
             cursor: pointer;
             border: 2px solid transparent;
-            border-radius: 6px;
         }
         .thumb.active {
-            border-color: #0d6efd;
+            border: 2px solid #0d6efd;
         }
-
-        /* Colour buttons */
         .color-btn.active {
             background: #000;
             color: #fff;
@@ -43,33 +24,35 @@
     </style>
 </head>
 
-<body class="bg-light">
 
-<!-- BACK BUTTON -->
-<div class="position-absolute top-0 end-0 m-3">
-    <button onclick="history.back()" class="btn btn-outline-secondary btn-sm">
+
+<body class="bg-light">
+<div style="position: absolute; top: 20px; right: 20px; z-index: 1000;">
+    <button onclick="history.back()" class="btn btn-outline-secondary">
         ← Back
     </button>
 </div>
 
+
+
+
+
 <div class="container mt-5">
-    <div class="row g-4">
+    <div class="row">
 
         <!-- LEFT : IMAGES -->
-        <div class="col-md-5 text-center">
+        <div class="col-md-5">
 
             {% set first_colour = images_by_colour.keys()|list|first %}
             {% set first_image = images_by_colour[first_colour][0] %}
 
             <!-- MAIN IMAGE -->
-            <div class="image-wrapper mb-3 shadow-sm">
-                <img id="mainImage"
-                     src="{{ url_for('static', filename=first_image) }}"
-                     class="img-fluid">
-            </div>
+            <img id="mainImage"
+                 src="{{ url_for('static', filename=first_image) }}"
+                 class="img-fluid rounded shadow-sm mb-3">
 
             <!-- THUMBNAILS -->
-            <div id="thumbContainer" class="d-flex gap-2 justify-content-center flex-wrap">
+            <div id="thumbContainer" class="d-flex gap-2 flex-wrap">
                 {% for img in images_by_colour[first_colour] %}
                     <img src="{{ url_for('static', filename=img) }}"
                          class="thumb {% if loop.first %}active{% endif %}"
@@ -81,19 +64,22 @@
         <!-- RIGHT : DETAILS -->
         <div class="col-md-7">
 
-            <h3 class="fw-bold">{{ product[1] }}</h3>
-            <h4 class="text-success fw-bold">₹ {{ product[2] }}</h4>
+
+
+            <h3>{{ product[1] }}</h3>
+            <h4 class="text-success">₹ {{ product[2] }}</h4>
 
             <p class="text-muted mt-3">
                 {{ product[3] }}
             </p>
 
             <!-- COLOURS -->
-            <p class="fw-semibold mt-4">Available Colours</p>
+            <p class="fw-bold mt-3">Available Colours</p>
+
             <div id="colorButtons" class="mb-3">
                 {% for colour in images_by_colour.keys() %}
                     <button type="button"
-                            class="btn btn-outline-dark me-2 mb-2 color-btn {% if loop.first %}active{% endif %}"
+                            class="btn btn-outline-dark me-2 color-btn {% if loop.first %}active{% endif %}"
                             onclick="changeColour('{{ colour }}', this)">
                         {{ colour }}
                     </button>
@@ -103,23 +89,21 @@
             {% if product[4] > 0 %}
 
                 <!-- QUANTITY -->
-                <div class="mb-4">
-                    <label class="fw-semibold mb-1">Quantity</label>
-                    <select class="form-select w-50" id="quantitySelect">
-                        {% for i in range(1, product[4] + 1) %}
-                            <option value="{{ i }}">{{ i }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
+                <p class="fw-bold mt-3">Quantity</p>
+                <select class="form-select w-50 mb-4" id="quantitySelect">
+                    {% for i in range(1, product[4] + 1) %}
+                        <option value="{{ i }}">{{ i }}</option>
+                    {% endfor %}
+                </select>
 
                 <!-- ACTION BUTTONS -->
-                <div class="d-flex gap-3 flex-wrap">
+                <div class="d-flex gap-3">
 
                     <!-- BUY NOW -->
                     <form method="post" action="/buy_now/{{ product[0] }}">
                         <input type="hidden" name="colour" id="selectedColourBuy" value="{{ first_colour }}">
                         <input type="hidden" name="quantity" id="buyQty">
-                        <button type="submit" class="btn btn-success btn-lg px-4">
+                        <button type="submit" class="btn btn-success btn-lg">
                             Buy Now
                         </button>
                     </form>
@@ -129,7 +113,7 @@
                         <input type="hidden" name="product_id" value="{{ product[0] }}">
                         <input type="hidden" name="colour" id="selectedColourCart" value="{{ first_colour }}">
                         <input type="hidden" name="quantity" id="cartQty">
-                        <button type="submit" class="btn btn-dark btn-lg px-4">
+                        <button type="submit" class="btn btn-dark btn-lg">
                             Add to Cart
                         </button>
                     </form>
@@ -155,7 +139,7 @@
     const buyQty = document.getElementById("buyQty");
     const cartQty = document.getElementById("cartQty");
 
-    if (qtySelect) {
+    if (qtySelect && buyQty && cartQty) {
         buyQty.value = qtySelect.value;
         cartQty.value = qtySelect.value;
 
