@@ -17,7 +17,7 @@ UPLOAD_FOLDER = os.path.join(app.root_path, "static", "images")
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 
-ADMIN_USERNAME = "VistraTara"
+ADMIN_USERNAME = "VastraTara"
 ADMIN_PASSWORD = "Group@04"
 # ---------------- DB ----------------
 def get_db():
