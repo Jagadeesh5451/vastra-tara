@@ -17,8 +17,8 @@ UPLOAD_FOLDER = os.path.join(app.root_path, "static", "images")
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 
-ADMIN_USERNAME = "Jagadeesh"
-ADMIN_PASSWORD = "12345"
+ADMIN_USERNAME = "VistraTara"
+ADMIN_PASSWORD = "Group@04"
 # ---------------- DB ----------------
 def get_db():
     conn = sqlite3.connect(
@@ -755,7 +755,7 @@ def checkout():
         message += "💳 Payment: Cash on Delivery"
 
         whatsapp_url = (
-            "https://wa.me/919390708120?text="
+            "https://wa.me/919632376818?text="
             + urllib.parse.quote(message)
         )
         session["whatsapp_url"] = whatsapp_url
@@ -881,7 +881,7 @@ def cancel_order(order_id):
     )
 
     whatsapp_url = (
-        "https://wa.me/919390708120?text="
+        "https://wa.me/919632376818?text="
         + urllib.parse.quote(message)
     )
 
