@@ -877,7 +877,6 @@ def cancel_order(order_id):
         f"Colour: {colour}\n"
         f"Quantity: {qty}\n"
         f"Amount: ₹{total}\n\n"
-        "Stock restored successfully."
     )
 
     whatsapp_url = (
